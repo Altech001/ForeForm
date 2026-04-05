@@ -1,0 +1,32 @@
+{
+  "name": "FormShare",
+  "type": "object",
+  "properties": {
+    "form_id": {
+      "type": "string",
+      "description": "ID of the shared form"
+    },
+    "shared_with_email": {
+      "type": "string",
+      "description": "Email of the user this form is shared with"
+    },
+    "permission": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "viewer"
+      ],
+      "default": "viewer",
+      "description": "editor = can edit questions; viewer = can only view/export responses"
+    },
+    "shared_by": {
+      "type": "string",
+      "description": "Email of the admin who shared the form"
+    }
+  },
+  "required": [
+    "form_id",
+    "shared_with_email",
+    "permission"
+  ]
+}

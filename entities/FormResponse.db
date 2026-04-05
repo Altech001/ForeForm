@@ -1,0 +1,54 @@
+{
+  "name": "FormResponse",
+  "type": "object",
+  "properties": {
+    "form_id": {
+      "type": "string"
+    },
+    "respondent_name": {
+      "type": "string"
+    },
+    "respondent_email": {
+      "type": "string"
+    },
+    "signature_data_url": {
+      "type": "string",
+      "description": "Base64 PNG of respondent's signature"
+    },
+    "gps_latitude": {
+      "type": "number"
+    },
+    "gps_longitude": {
+      "type": "number"
+    },
+    "gps_accuracy": {
+      "type": "number"
+    },
+    "gps_address": {
+      "type": "string"
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string"
+          },
+          "question_label": {
+            "type": "string"
+          },
+          "question_type": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "form_id"
+  ]
+}

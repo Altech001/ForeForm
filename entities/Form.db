@@ -1,0 +1,157 @@
+{
+  "name": "Form",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Form title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Form description"
+    },
+    "questions": {
+      "type": "array",
+      "description": "List of questions",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "short_text",
+              "long_text",
+              "multiple_choice",
+              "checkbox",
+              "dropdown",
+              "date",
+              "number",
+              "email"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "condition": {
+            "type": "object",
+            "properties": {
+              "source_question_id": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "equals",
+                  "not_equals",
+                  "contains",
+                  "not_empty"
+                ]
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published",
+        "closed"
+      ],
+      "default": "draft"
+    },
+    "response_count": {
+      "type": "number",
+      "default": 0
+    },
+    "branding": {
+      "type": "object",
+      "description": "Form branding, research metadata and visual theme",
+      "properties": {
+        "logo_url": {
+          "type": "string"
+        },
+        "organization": {
+          "type": "string"
+        },
+        "research_title": {
+          "type": "string"
+        },
+        "appendix_label": {
+          "type": "string"
+        },
+        "ethics_statement": {
+          "type": "string"
+        },
+        "consent_text": {
+          "type": "string"
+        },
+        "require_signature": {
+          "type": "boolean",
+          "default": false
+        },
+        "collect_gps": {
+          "type": "boolean",
+          "default": false
+        },
+        "theme": {
+          "type": "string",
+          "description": "Visual colour theme token",
+          "enum": [
+            "default",
+            "violet",
+            "blue",
+            "emerald",
+            "rose",
+            "amber",
+            "indigo",
+            "slate"
+          ]
+        },
+        "header_style": {
+          "type": "string",
+          "description": "How the form header is rendered",
+          "enum": [
+            "minimal",
+            "cover_image",
+            "split",
+            "banner_solid",
+            "banner_gradient"
+          ]
+        },
+        "cover_image_url": {
+          "type": "string",
+          "description": "Hero/cover image URL"
+        },
+        "logo_position": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "default": "left"
+        }
+      }
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
