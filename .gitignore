@@ -25,3 +25,4 @@ dist-ssr
 .env# Google OAuth secrets
 client_secret*.json
 *.apps.googleusercontent.com.json
+.venv
