@@ -1,6 +1,6 @@
 import { appParams } from '@/lib/app-params';
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = 'https://foreform.vercel.app/api';
 
 function getToken() {
     return localStorage.getItem('base44_access_token') || appParams.token;
@@ -121,7 +121,7 @@ export const base44 = {
                 const res = await fetch(`${API_BASE}/upload`, { ...options, headers });
                 if (!res.ok) throw new Error("Upload failed");
                 const data = await res.json();
-                return { file_url: `http://127.0.0.1:8000${data.file_url}` };
+                return { file_url: `https://foreform.vercel.app${data.file_url}` };
             },
             ExtractDataFromUploadedFile: async (args: { file_url: string }) => {
                 const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify({ file_url: args.file_url }) });
