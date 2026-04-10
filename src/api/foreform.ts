@@ -123,12 +123,16 @@ export const base44 = {
                 const data = await res.json();
                 return { file_url: `https://foreform.vercel.app${data.file_url}` };
             },
-            ExtractDataFromUploadedFile: async (args: { file_url: string }) => {
-                const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify({ file_url: args.file_url }) });
+            ExtractDataFromUploadedFile: async (args: { file_url: string; json_schema?: any }) => {
+                const body: any = { file_url: args.file_url };
+                if (args.json_schema) body.json_schema = args.json_schema;
+                const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify(body) });
                 return res.questions;
             },
-            InvokeLLM: async (args: { prompt: string }) => {
-                const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify({ text: args.prompt }) });
+            InvokeLLM: async (args: { prompt: string; response_json_schema?: any }) => {
+                const body: any = { text: args.prompt };
+                if (args.response_json_schema) body.response_json_schema = args.response_json_schema;
+                const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify(body) });
                 return JSON.stringify({ questions: res.questions });
             },
             SendEmail: async (args: any) => { return true; }

@@ -9,17 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bot, Sparkles, MapPin, PenLine, Users, CheckCircle2,
-  AlertCircle, ChevronRight, Loader2, Play, RotateCcw
+  AlertCircle, ChevronRight, Loader2, Play, RotateCcw,
+  Settings
 } from "lucide-react";
 import { toast } from "sonner";
 import { randomUgandanName, randomUgandaLocation, generateSimpleSignature, UGANDA_DISTRICTS } from "@/lib/ugandaLocations";
-import OpenAI from "openai";
-
-const groq = new OpenAI({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-  dangerouslyAllowBrowser: true,
-});
 
 
 const REGION_OPTIONS = ["All Regions", "Central", "Eastern", "Northern", "Western"];
@@ -86,9 +80,10 @@ export default function AIRespondents() {
       // Step 1: Generate AI answers
       updateRespondent(respondent.id, { status: "generating" });
 
-      const response = await groq.responses.create({
-        model: "openai/gpt-oss-20b",
-        input: `You are a research participant from ${respondent.location.locality}, ${respondent.location.name} District, Uganda (${respondent.location.region} Region).
+      let resultJson = { answers: [] };
+      try {
+        const result = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a research participant from ${respondent.location.locality}, ${respondent.location.name} District, Uganda (${respondent.location.region} Region).
 Your name is ${respondent.name}. Answer the following survey questions naturally and realistically, drawing on the context of living in Uganda. Keep answers concise but meaningful.
 
 Form Title: ${selectedForm.title}
@@ -103,22 +98,21 @@ Return ONLY a JSON object with this EXACT structure:
     { "question_id": "...", "answer": "..." }
   ]
 }`,
-      });
+        });
 
-      let result = { answers: [] };
-      try {
-        const text = response.output_text || "";
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
-        }
+        // The bridge might return a double-stringified JSON or an object
+        let data = typeof result === "string" ? JSON.parse(result) : result;
+        if (typeof data === "string") data = JSON.parse(data);
+
+        resultJson = data;
       } catch (e) {
-        console.error("Failed to parse AI response:", e);
+        console.error("Failed to generate or parse AI response:", e);
+        updateRespondent(respondent.id, { status: "error" });
+        continue; // Skip this respondent and continue with the next one
       }
 
-
       const answersMap = {};
-      (result.answers || []).forEach(a => { answersMap[a.question_id] = a.answer; });
+      (resultJson.answers || []).forEach(a => { answersMap[a.question_id] = a.answer; });
 
       const formattedAnswers = (selectedForm.questions || []).map(q => ({
         question_id: q.id,
@@ -177,8 +171,8 @@ Return ONLY a JSON object with this EXACT structure:
                 <Link to="/"><ArrowLeft className="w-4 h-4" /></Link>
               </Button>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8  flex items-center justify-center">
+                  <img src="/star.png" alt="ForeForm" className="w-5 h-5" />
                 </div>
                 <h1 className="font-semibold">AI Respondents Generator</h1>
                 <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">Uganda</Badge>
@@ -191,9 +185,9 @@ Return ONLY a JSON object with this EXACT structure:
       <main className="max-w-5xl mx-auto px-6 py-8 space-y-6">
 
         {/* Config panel */}
-        <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+        <div className="bg-card rounded p-6 space-y-5">
           <h2 className="font-semibold flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" /> Configuration
+            <Settings className="w-4 h-4 text-primary" /> Configuration
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -240,7 +234,7 @@ Return ONLY a JSON object with this EXACT structure:
           </div>
 
           {selectedForm && (
-            <div className="flex items-center gap-3 p-3 bg-accent/40 rounded-lg text-sm">
+            <div className="flex items-center gap-3 p-3 bg-accent/40 rounded text-sm">
               <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
               <span><span className="font-medium">{selectedForm.title}</span> — {selectedForm.questions?.length || 0} questions
                 {selectedForm.branding?.require_signature && <span className="ml-2 text-muted-foreground">· Signature required ✓</span>}
@@ -282,7 +276,7 @@ Return ONLY a JSON object with this EXACT structure:
               { label: "Submitted", value: doneCount, color: "text-green-600" },
               { label: "Failed", value: respondents.filter(r => r.status === "error").length, color: "text-destructive" },
             ].map(s => (
-              <div key={s.label} className="bg-card border border-border rounded-xl p-4 text-center">
+              <div key={s.label} className="bg-card border border-border rounded p-4 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
               </div>
@@ -292,7 +286,7 @@ Return ONLY a JSON object with this EXACT structure:
 
         {/* Respondents table */}
         {respondents.length > 0 && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card rounded overflow-hidden">
             <div className="px-5 py-3 border-b border-border bg-muted/30">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Respondent Queue</p>
             </div>
@@ -323,15 +317,15 @@ Return ONLY a JSON object with this EXACT structure:
 
         {/* Post-run CTA */}
         {allDone && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="bg-green-50 border border-green-200 rounded p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-left">
               <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
                 <p className="font-semibold text-green-800">{doneCount} AI respondents submitted!</p>
                 <p className="text-sm text-green-700">All responses include GPS coordinates, signatures, and AI-generated answers.</p>
               </div>
             </div>
-            <Button asChild variant="outline" className="border-green-300 text-green-800 hover:bg-green-100 flex-shrink-0">
+            <Button asChild variant="outline" className="border-green-300 text-green-800 hover:bg-green-100 flex-shrink-0 w-full sm:w-auto">
               <Link to={`/forms/${selectedFormId}/responses`}>View Responses →</Link>
             </Button>
           </div>

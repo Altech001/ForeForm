@@ -13,51 +13,109 @@ const statusConfig = {
   closed: { label: "Closed", className: "bg-destructive/10 text-destructive" },
 };
 
-export default function FormCard({ form, onDelete, onCopyLink }) {
+export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) {
   const config = statusConfig[form.status] || statusConfig.draft;
 
-  return (
-    <Card className="p-5 shadow-none cursor-alias hover:shadow-lg transition-all duration-300 group border-border/60">
-      <div className="flex items-start justify-between gap-4">
-        <div className="w-14 h-14 rounded-xl border border-border/30 flex shrink-0 items-center justify-center">
-          <img src="/form.png" alt="Form icon" className="w-8 h-8 object-contain drop-shadow-sm" />
+  if (view === "grid") {
+    return (
+      <Card className="rounded p-6 shadow-none hover:shadow-xl transition-all duration-300 group border-border/60 flex flex-col h-full bg-card hover:border-primary/40 relative">
+        <div className="absolute top-4 right-4 z-20">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 z-50">
+              <DropdownMenuItem asChild>
+                <Link to={`/forms/${form.id}/edit`} className="cursor-pointer"><Pencil className="w-4 h-4 mr-2" />Edit</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to={`/forms/${form.id}/responses`} className="cursor-pointer"><BarChart3 className="w-4 h-4 mr-2" />Responses</Link>
+              </DropdownMenuItem>
+              {form.status === "published" && (
+                <DropdownMenuItem onClick={() => onCopyLink(form.id)} className="cursor-pointer">
+                  <Link2 className="w-4 h-4 mr-2" />Copy Link
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive cursor-pointer">
+                <Trash2 className="w-4 h-4 mr-2" />Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+
+        <Link to={`/forms/${form.id}/edit`} className="flex flex-col flex-1 cursor-pointer">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-12 h-12 rounded border border-border/30 flex items-center justify-center bg-muted/20">
+              <img src="/form.png" alt="Form icon" className="w-7 h-7 object-contain drop-shadow-sm" />
+            </div>
             <Badge className={config.className} variant="secondary">{config.label}</Badge>
-            <span className="text-xs text-muted-foreground">
-              {format(new Date(form.created_date), "MMM d, yyyy")}
+          </div>
+
+          <h3 className="font-semibold text-lg line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h3>
+          <p className="text-sm text-muted-foreground line-clamp-2 flex-1 mb-4">
+            {form.description || "No description provided"}
+          </p>
+
+          <div className="flex flex-col gap-3 pt-4 border-t border-border/40">
+            <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <span>{form.questions?.length || 0} Questions</span>
+              <span className="text-rose-500">{form.response_count || 0} Responses</span>
+            </div>
+            <span className="text-[11px] text-muted-foreground/70">
+              Created {format(new Date(form.created_date), "MMM d, yyyy")}
             </span>
           </div>
-          <h3 className="font-semibold text-lg truncate mt-2">{form.title}</h3>
-          {form.description && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{form.description}</p>
-          )}
-          <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-            <span className="text-primary">{form.questions?.length || 0} questions</span>
-            <span className="text-rose-500">{form.response_count || 0} responses</span>
+        </Link>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="rounded p-5 shadow-none hover:shadow-lg transition-all duration-300 group border-border/60 bg-card">
+      <div className="flex items-start justify-between gap-4">
+        <Link to={`/forms/${form.id}/edit`} className="flex items-start gap-4 flex-1 min-w-0">
+          <div className="w-14 h-14 rounded border border-border/30 flex shrink-0 items-center justify-center bg-muted/20">
+            <img src="/form.png" alt="Form icon" className="w-8 h-8 object-contain drop-shadow-sm" />
           </div>
-        </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className={config.className} variant="secondary">{config.label}</Badge>
+              <span className="text-xs text-muted-foreground font-medium">
+                {format(new Date(form.created_date), "MMM d, yyyy")}
+              </span>
+            </div>
+            <h3 className="font-semibold text-lg truncate mt-2 group-hover:text-primary transition-colors">{form.title}</h3>
+            {form.description && (
+              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{form.description}</p>
+            )}
+            <div className="flex items-center gap-4 mt-3 text-sm font-medium">
+              <span className="text-primary/80">{form.questions?.length || 0} questions</span>
+              <span className="text-rose-500/80">{form.response_count || 0} responses</span>
+            </div>
+          </div>
+        </Link>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button variant="ghost" size="icon" className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity h-8 w-8">
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-48 z-50">
             <DropdownMenuItem asChild>
-              <Link to={`/forms/${form.id}/edit`}><Pencil className="w-4 h-4 mr-2" />Edit</Link>
+              <Link to={`/forms/${form.id}/edit`} className="cursor-pointer"><Pencil className="w-4 h-4 mr-2" />Edit</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to={`/forms/${form.id}/responses`}><BarChart3 className="w-4 h-4 mr-2" />Responses</Link>
+              <Link to={`/forms/${form.id}/responses`} className="cursor-pointer"><BarChart3 className="w-4 h-4 mr-2" />Responses</Link>
             </DropdownMenuItem>
             {form.status === "published" && (
-              <DropdownMenuItem onClick={() => onCopyLink(form.id)}>
+              <DropdownMenuItem onClick={() => onCopyLink(form.id)} className="cursor-pointer">
                 <Link2 className="w-4 h-4 mr-2" />Copy Link
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive">
+            <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive cursor-pointer">
               <Trash2 className="w-4 h-4 mr-2" />Delete
             </DropdownMenuItem>
           </DropdownMenuContent>

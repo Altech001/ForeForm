@@ -15,6 +15,8 @@ import ComplexAI from './pages/ComplexAI';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import DocxPreview from './pages/DocxPreview';
+import ProfilePage from './pages/ProfilePage';
+import ProfileWidget from './components/widget/profile';
 import { Navigate, Outlet } from 'react-router-dom';
 
 // Protected Route wrapper component
@@ -70,22 +72,26 @@ const AuthenticatedApp = () => {
 
   // Render the main app routes nested in ProtectedRoute where needed
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+    <>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
 
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/forms/:id/edit" element={<FormBuilder />} />
-        <Route path="/forms/:id/responses" element={<FormResponses />} />
-        <Route path="/forms/:formId/responses/:responseId" element={<ResponseView />} />
-        <Route path="/ai-respondents" element={<AIRespondents />} />
-        <Route path="/complex-ai" element={<ComplexAI />} />
-        <Route path="/docx-preview" element={<DocxPreview />} />
-      </Route>
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/forms/:id/edit" element={<FormBuilder />} />
+          <Route path="/forms/:id/responses" element={<FormResponses />} />
+          <Route path="/forms/:formId/responses/:responseId" element={<ResponseView />} />
+          <Route path="/ai-respondents" element={<AIRespondents />} />
+          <Route path="/complex-ai" element={<ComplexAI />} />
+          <Route path="/docx-preview" element={<DocxPreview />} />
+          <Route path="/profile" element={<ProfilePage />} />
+        </Route>
 
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+      <ProfileWidget />
+    </>
   );
 };
 

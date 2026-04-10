@@ -112,7 +112,7 @@ export default function ResponseView() {
               </Button>
               <h1 className="font-semibold">Response Detail</h1>
             </div>
-            <Button variant="outline" size="sm" onClick={() => downloadDocx(form, response)} className="gap-1.5">
+            <Button variant="default" size="sm" onClick={() => downloadDocx(form, response)} className="gap-1.5">
               <FileDown className="w-4 h-4" /> Download DOCX
             </Button>
           </div>
@@ -142,7 +142,7 @@ export default function ResponseView() {
         )}
 
         {/* Respondent info card */}
-        <div className="bg-card shadow-none border border-border rounded p-6">
+        <div className="bg-card shadow rounded-none p-6">
           <h2 className="text-sm font-bold text-muted-foreground mb-4">Participant Information</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="flex items-start gap-3">
@@ -158,7 +158,7 @@ export default function ResponseView() {
             {response.respondent_email && (
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg  flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-4 h-4 text-primary" />
+                  <Mail className="w-4 h-4 text-rose-600" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Email</p>
@@ -221,7 +221,7 @@ export default function ResponseView() {
         </div>
 
         {/* Answers */}
-        <div className="bg-card border border-separate shadow-none rounded p-6">
+        <div className="bg-card shadow rounded-none  p-6">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold text-muted-foreground">
               Survey Responses
@@ -246,7 +246,7 @@ export default function ResponseView() {
                         </span>
                       </div>
                       <p className="font-medium text-sm text-foreground mb-2">{a.question_label}</p>
-                      <div className={`rounded-lg px-4 py-3 text-sm ${a.answer ? "bg-accent/50 text-foreground" : "bg-muted/50 text-muted-foreground italic"}`}>
+                      <div className={`rounded px-4 py-3 text-sm ${a.answer ? "bg-accent/50 text-foreground" : "bg-muted/50 text-muted-foreground italic"}`}>
                         {a.answer || "No answer provided"}
                       </div>
                     </div>
@@ -259,8 +259,8 @@ export default function ResponseView() {
 
         {/* Ethics footer */}
         {branding.ethics_statement && (
-          <div className="border border-border/60 rounded-xl p-5 bg-muted/30">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Ethics Statement</p>
+          <div className="border border-primary/40 rounded p-5 bg-primary/5">
+            <p className="text-xs font-semibold text-primary mb-2">Ethics Statement</p>
             <p className="text-sm text-muted-foreground leading-relaxed">{branding.ethics_statement}</p>
           </div>
         )}

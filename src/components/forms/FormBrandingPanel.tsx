@@ -10,8 +10,28 @@ import { base44 } from "@/api/foreform";
 import { toast } from "sonner";
 import { THEMES } from "@/lib/formThemes";
 
-export default function FormBrandingPanel({ branding = {}, onChange }) {
-  const logoRef = useRef();
+export interface FormBranding {
+  logo_url?: string;
+  organization?: string;
+  research_title?: string;
+  appendix_label?: string;
+  ethics_statement?: string;
+  consent_text?: string;
+  header_style?: string;
+  theme?: string;
+  logo_position?: string;
+  cover_image_url?: string;
+  require_signature?: boolean;
+  collect_gps?: boolean;
+}
+
+interface FormBrandingPanelProps {
+  branding?: FormBranding;
+  onChange: (branding: FormBranding) => void;
+}
+
+export default function FormBrandingPanel({ branding = {}, onChange }: FormBrandingPanelProps) {
+  const logoRef = useRef<HTMLInputElement>(null);
 
   const update = (field, value) => onChange({ ...branding, [field]: value });
 
@@ -113,12 +133,16 @@ export default function FormBrandingPanel({ branding = {}, onChange }) {
         <div className="space-y-1.5">
           <Label>Logo Position</Label>
           <div className="flex gap-2">
-            {[["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]].map(([pos, Icon]) => (
+            {[
+              { pos: "left", Icon: AlignLeft },
+              { pos: "center", Icon: AlignCenter },
+              { pos: "right", Icon: AlignRight },
+            ].map(({ pos, Icon }) => (
               <button
                 key={pos}
                 type="button"
                 onClick={() => update("logo_position", pos)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm transition-all ${branding.logo_position === pos || (!branding.logo_position && pos === "left") ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded border text-sm transition-all ${branding.logo_position === pos || (!branding.logo_position && pos === "left") ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"}`}
               >
                 <Icon className="w-4 h-4" />
                 {pos.charAt(0).toUpperCase() + pos.slice(1)}
@@ -132,7 +156,7 @@ export default function FormBrandingPanel({ branding = {}, onChange }) {
             <Label>Cover / Background Image URL</Label>
             <Input value={branding.cover_image_url || ""} onChange={e => update("cover_image_url", e.target.value)} placeholder="https://images.unsplash.com/..." />
             {branding.cover_image_url && (
-              <img src={branding.cover_image_url} alt="preview" className="mt-2 w-full h-24 object-cover rounded-lg border border-border" />
+              <img src={branding.cover_image_url} alt="preview" className="mt-2 w-full h-24 object-cover border border-border" />
             )}
           </div>
         )}

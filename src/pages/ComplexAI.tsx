@@ -9,15 +9,9 @@ import { Phase, Question, Message, EXAMPLES } from "./complex-ai/types";
 import { PromptPhase } from "./complex-ai/PromptPhase";
 import { EditorPhase } from "./complex-ai/EditorPhase";
 
+
 /* ─── AI Client ────────────────────────────────────────────── */
-const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-const client = apiKey
-    ? new OpenAI({
-          apiKey,
-          dangerouslyAllowBrowser: true,
-          baseURL: "https://api.groq.com/openai/v1",
-      })
-    : null;
+// We now use the backend InvokeLLM bridge
 
 /* ─── Helpers ────────────────────────────────────────────── */
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -46,7 +40,7 @@ export default function ComplexAI() {
 
     /* Prompt-phase state */
     const [messages, setMessages] = useState<Message[]>([
-        { id: "0", role: "ai", text: "Hi! Tell me what kind of form you need and I'll generate it instantly." },
+        { id: "0", role: "ai", text: "Hi! Tell me what kind of form you need." },
     ]);
     const [inputVal, setInputVal] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -68,45 +62,47 @@ export default function ComplexAI() {
         el.style.height = Math.min(el.scrollHeight, 140) + "px";
     };
 
+    const addQuestion = () => {
+        const newQ: Question = {
+            id: uid(),
+            type: "short_text",
+            label: "",
+            required: false,
+            options: [],
+        };
+        setQuestions((prev) => [...prev, newQ]);
+    };
+
     /* ── AI logic ── */
     async function callAI(prompt: string, refine = "") {
         setIsGen(true);
         setQuestions([]);
-        
-        if (!client) {
-            toast.error("AI features not configured. Please set VITE_GROQ_API_KEY environment variable.");
-            setIsGen(false);
-            setPhase("editor");
-            setQuestions(getSampleQuestions(prompt));
-            setCurrentPrompt(prompt);
-            return;
-        }
-        
+
         try {
-            const response = await client.chat.completions.create({
-                model: "openai/gpt-oss-120b",
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are an expert form creator. Output ONLY valid JSON with a 'questions' array.
-Each question: { id, type, label, required, options }.
-Types: short_text | long_text | multiple_choice | checkbox | dropdown | date | email | number.
-For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questions.`,
-                    },
-                    {
-                        role: "user",
-                        content: `Form for: "${prompt}". ${refine ? "Additional instruction: " + refine : ""}`,
-                    },
-                ],
-                response_format: { type: "json_object" },
+            let finalPrompt = `Form for: "${prompt}". ${refine ? "Additional instruction: " + refine : ""}`;
+
+            if (file) {
+                toast.loading("Uploading context document...");
+                const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                finalPrompt += ` [Context from uploaded file: ${file_url}]`;
+                toast.dismiss();
+            }
+
+            const result = await base44.integrations.Core.InvokeLLM({
+                prompt: finalPrompt,
             });
 
-            const text = response.choices[0]?.message?.content || "";
-            const parsed = JSON.parse(text);
+            // The bridge might return a JSON string or an object depending on fetchApi
+            let data = typeof result === "string" ? JSON.parse(result) : result;
 
-            if (Array.isArray(parsed.questions)) {
+            // If the bridge wrapping it in a stringified property
+            if (typeof data === "string") data = JSON.parse(data);
+
+            const questionsList = data.questions || [];
+
+            if (Array.isArray(questionsList)) {
                 let acc: Question[] = [];
-                for (const q of parsed.questions) {
+                for (const q of questionsList) {
                     await new Promise((r) => setTimeout(r, 120));
                     if (!q.options) q.options = [];
                     if (q.title && !q.label) q.label = q.title;
@@ -118,7 +114,8 @@ For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questio
             } else {
                 throw new Error("Bad shape");
             }
-        } catch {
+        } catch (e: any) {
+            console.error("AI Error:", e);
             toast.error("AI failed — showing sample questions.");
             const samples = getSampleQuestions(prompt);
             for (const q of samples) {
@@ -130,8 +127,8 @@ For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questio
         }
     }
 
-    async function handleSend() {
-        const val = inputVal.trim();
+    async function handleSend(overridePrompt?: any) {
+        const val = (typeof overridePrompt === "string" ? overridePrompt : inputVal).trim();
         if (!val || isGenerating) return;
 
         setCurrentPrompt(val);
@@ -164,6 +161,7 @@ For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questio
             label: q.label || "Untitled",
             required: !!q.required,
             options: Array.isArray(q.options) ? q.options : [],
+            condition: q.condition || null,
         }));
         try {
             const form = await base44.entities.Form.create({
@@ -212,6 +210,7 @@ For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questio
                 messagesEndRef={messagesEndRef}
                 textareaRef={textareaRef}
                 autoResize={autoResize}
+                toggleTheme={() => setIsDark(!isDark)}
             />
         );
     }
@@ -242,6 +241,8 @@ For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questio
             addOpt={addOpt}
             updateOpt={updateOpt}
             removeOpt={removeOpt}
+            addQuestion={addQuestion}
+            toggleTheme={() => setIsDark(!isDark)}
         />
     );
 }

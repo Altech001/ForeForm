@@ -26,7 +26,7 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
   });
 
   const addMutation = useMutation({
-    mutationFn: (data) => base44.entities.FormShare.create(data),
+    mutationFn: (data: { form_id: any; shared_with_email: string; permission: string; shared_by: any }) => base44.entities.FormShare.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form-shares", formId] });
       setEmail("");
@@ -36,7 +36,7 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (id) => base44.entities.FormShare.delete(id),
+    mutationFn: (id: string) => base44.entities.FormShare.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form-shares", formId] });
       toast.success("Access revoked");
@@ -44,7 +44,7 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, permission }) => base44.entities.FormShare.update(id, { permission }),
+    mutationFn: ({ id, permission }: { id: string; permission: string }) => base44.entities.FormShare.update(id, { permission }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["form-shares", formId] }),
   });
 
@@ -63,8 +63,8 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
   return (
     <div className="space-y-5">
       {/* Owner row */}
-      <div className="flex items-center gap-3 p-3 bg-accent/40 rounded-xl">
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+      <div className="flex items-center gap-3 p-3 bg-accent/40 rounded">
+        <div className="w-8 h-8 flex items-center justify-center">
           <Crown className="w-4 h-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
@@ -85,7 +85,7 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
             const meta = PERMISSION_META[share.permission] || PERMISSION_META.viewer;
             const Icon = meta.icon;
             return (
-              <div key={share.id} className="flex items-center gap-3 p-3 border border-border rounded-xl bg-card">
+              <div key={share.id} className="flex items-center gap-3 p-3 border border-border rounded bg-card">
                 <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                   <Users className="w-4 h-4 text-muted-foreground" />
                 </div>
@@ -158,7 +158,7 @@ export default function TeamAccessPanel({ formId, currentUserEmail }) {
           {Object.entries(PERMISSION_META).map(([key, meta]) => {
             const Icon = meta.icon;
             return (
-              <div key={key} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${meta.color}`}>
+              <div key={key} className={`flex items-start gap-2 p-2.5 rounded text-xs ${meta.color}`}>
                 <Icon className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-semibold">{meta.label}</p>

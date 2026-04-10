@@ -36,14 +36,14 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start gap-3">
-        <div {...dragHandleProps} className="mt-2 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
+    <div className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start gap-2 sm:gap-3">
+        <div {...dragHandleProps} className="mt-2 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
           <GripVertical className="w-5 h-5" />
         </div>
 
-        <div className="flex-1 space-y-4">
-          <div className="flex gap-3">
+        <div className="flex-1 space-y-4 min-w-0">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Input
               value={question.label}
               onChange={(e) => updateField("label", e.target.value)}
@@ -51,7 +51,7 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
               className="text-base font-medium flex-1"
             />
             <Select value={question.type} onValueChange={(val) => updateField("type", val)}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -71,14 +71,14 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
             <div className="space-y-2 pl-1">
               {(question.options || []).map((opt, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <QuestionTypeIcon type={question.type} className="w-4 h-4 text-muted-foreground" />
+                  <QuestionTypeIcon type={question.type} className="w-4 h-4 text-muted-foreground shrink-0" />
                   <Input
                     value={opt}
                     onChange={(e) => updateOption(i, e.target.value)}
-                    className="flex-1 h-9"
+                    className="flex-1 h-9 min-w-0"
                     placeholder={`Option ${i + 1}`}
                   />
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeOption(i)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeOption(i)}>
                     <X className="w-4 h-4" />
                   </Button>
                 </div>

@@ -16,15 +16,15 @@ function LogoOrIcon({ branding, size = "md", light = false }) {
   const bg = light ? "bg-white/20" : "bg-primary";
   const fg = light ? "text-white" : "text-primary-foreground";
   return (
-    <div className={`${wrap} ${bg} flex items-center justify-center flex-shrink-0`}>
-      <FileText className={`${iconSz} ${fg}`} />
+    <div className={`${wrap} flex items-center justify-center flex-shrink-0`}>
+      <img src="/form.png" alt="logo" className="h-10 object-contain" />
     </div>
   );
 }
 
 function OrgLabel({ branding, light = false }) {
   if (!branding.organization) return null;
-  const cls = light ? "text-white/80 font-semibold text-xs uppercase tracking-widest" : "text-primary font-bold text-xs uppercase tracking-widest";
+  const cls = light ? "text-white/80 font-semibold text-xs " : "text-primary font-bold text-xs ";
   return <p className={cls}>{branding.organization}</p>;
 }
 
@@ -56,11 +56,11 @@ export default function FormHeader({ form, questions }) {
         </div>
         <OrgLabel branding={branding} />
         {branding.appendix_label && <p className="text-xs text-muted-foreground mb-1 mt-1">{branding.appendix_label}</p>}
-        <h1 className="text-2xl font-bold mb-2 mt-1">{form.title}</h1>
+        <h1 className="text-xl font-bold mb-2 mt-1">{form.title}</h1>
         {branding.research_title && <p className="text-sm text-muted-foreground italic mb-3">{branding.research_title}</p>}
         {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
         {branding.ethics_statement && (
-          <div className="mt-4 p-3 bg-muted/60 rounded-lg border-l-2 border-primary/30 text-sm text-muted-foreground">
+          <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/50 text-sm text-muted-foreground">
             {branding.ethics_statement}
           </div>
         )}
@@ -78,14 +78,14 @@ export default function FormHeader({ form, questions }) {
             <LogoOrIcon branding={branding} size="md" light />
           </div>
           <OrgLabel branding={branding} light />
-          <h1 className="text-2xl font-bold text-white">{form.title}</h1>
+          <h1 className="text-xl font-bold text-white">{form.title}</h1>
           {branding.research_title && <p className="text-sm text-white/70 italic">{branding.research_title}</p>}
         </div>
         <div className="p-8">
           {branding.appendix_label && <p className="text-xs text-muted-foreground mb-2">{branding.appendix_label}</p>}
           {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
           {branding.ethics_statement && (
-            <div className="mt-4 p-3 bg-muted/60 rounded-lg border-l-2 border-primary/30 text-sm text-muted-foreground">
+            <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
             </div>
           )}
@@ -104,13 +104,13 @@ export default function FormHeader({ form, questions }) {
             <LogoOrIcon branding={branding} size="md" light />
           </div>
           <OrgLabel branding={branding} light />
-          <h1 className="text-2xl font-bold text-white">{form.title}</h1>
+          <h1 className="text-xl font-bold text-white">{form.title}</h1>
           {branding.research_title && <p className="text-sm text-white/70 italic">{branding.research_title}</p>}
         </div>
         <div className="p-8">
           {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
           {branding.ethics_statement && (
-            <div className="mt-4 p-3 bg-muted/60 rounded-lg border-l-2 border-primary/30 text-sm text-muted-foreground">
+            <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
             </div>
           )}
@@ -154,7 +154,7 @@ export default function FormHeader({ form, questions }) {
         {/* Coloured left panel */}
         <div className={`sm:w-2/5 flex flex-col items-center justify-center gap-4 p-8 bg-gradient-to-br ${theme.gradient}`}>
           <LogoOrIcon branding={branding} size="lg" light />
-          {branding.organization && <p className="text-white/80 font-semibold text-xs uppercase tracking-widest text-center">{branding.organization}</p>}
+          {branding.organization && <p className="text-white/80 font-semibold text-xs uppercase  text-center">{branding.organization}</p>}
           {coverUrl && <img src={coverUrl} alt="cover" className="w-full rounded-xl object-cover mt-2 opacity-80 h-28" />}
         </div>
         {/* Right text panel */}

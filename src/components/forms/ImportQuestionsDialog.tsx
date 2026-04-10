@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Upload, FileText, Table, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileText, Table, Sparkles, CheckCircle2, AlertCircle, LucideWholeWord } from "lucide-react";
 import { base44 } from "@/api/foreform";
 import { toast } from "sonner";
 
@@ -17,7 +17,7 @@ export default function ImportQuestionsDialog({ open, onClose, onImport }) {
   const [pastedText, setPastedText] = useState("");
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
-  const fileRef = useRef();
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const parseFromAI = async (text) => {
     setLoading(true);
@@ -63,7 +63,9 @@ Return only valid JSON matching this schema, no extra text.`,
       }
     });
     setLoading(false);
-    const questions = (result.questions || []).map(q => ({ ...q, id: generateId(), options: q.options || [] }));
+    let parsedData = typeof result === "string" ? JSON.parse(result) : result;
+    if (typeof parsedData === "string") parsedData = JSON.parse(parsedData);
+    const questions = (parsedData.questions || []).map(q => ({ ...q, id: generateId(), options: q.options || [] }));
     if (!questions.length) { setError("No questions found. Try a different input."); return; }
     setPreview(questions);
   };
@@ -101,7 +103,8 @@ Return only valid JSON matching this schema, no extra text.`,
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = ev.target.result;
+      const text = ev.target?.result as string;
+      if (!text) return;
       const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
       // Expect CSV: question,type,required,option1,option2,...
       const questions = lines.map(line => {
@@ -130,25 +133,25 @@ Return only valid JSON matching this schema, no extra text.`,
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" /> Import Questions
+            Import Questions
           </DialogTitle>
           <DialogDescription>Upload a PDF, paste text, or use a CSV template to auto-generate questions.</DialogDescription>
         </DialogHeader>
 
         {!preview ? (
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="ai" className="flex-1 gap-1.5"><Sparkles className="w-3.5 h-3.5" /> AI from PDF/Doc</TabsTrigger>
-              <TabsTrigger value="paste" className="flex-1 gap-1.5"><FileText className="w-3.5 h-3.5" /> Paste Text</TabsTrigger>
-              <TabsTrigger value="csv" className="flex-1 gap-1.5"><Table className="w-3.5 h-3.5" /> CSV Template</TabsTrigger>
+          <Tabs value={tab} onValueChange={setTab} className="rounded">
+            <TabsList className="w-full rounded">
+              <TabsTrigger value="ai" className="flex-1 gap-1.5 rounded"><Sparkles className="w-3.5 h-3.5" /> AI from PDF/Doc</TabsTrigger>
+              <TabsTrigger value="paste" className="flex-1 gap-1.5 rounded"><FileText className="w-3.5 h-3.5" /> Paste Text</TabsTrigger>
+              <TabsTrigger value="csv" className="flex-1 gap-1.5 rounded"><Table className="w-3.5 h-3.5" /> CSV Template</TabsTrigger>
             </TabsList>
 
             <TabsContent value="ai" className="space-y-4 pt-4">
               <div
                 onClick={() => fileRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-xl p-10 text-center cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all"
+                className="border-2 border-dashed border-border rounded p-10 text-center cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all"
               >
-                <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <LucideWholeWord className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="font-medium">Click to upload PDF, DOCX, or XLSX</p>
                 <p className="text-sm text-muted-foreground mt-1">AI will extract and format questions automatically</p>
               </div>
@@ -168,9 +171,9 @@ Return only valid JSON matching this schema, no extra text.`,
             </TabsContent>
 
             <TabsContent value="csv" className="space-y-4 pt-4">
-              <div className="bg-muted/50 rounded-xl p-4 text-sm space-y-2">
+              <div className="bg-muted/50 rounded-xl w-full p-4 text-sm space-y-2 overflow-hidden">
                 <p className="font-semibold">CSV Template Format:</p>
-                <code className="block text-xs bg-background border border-border rounded p-3 font-mono whitespace-pre">{`question,type,required,option1,option2
+                <code className="block text-xs bg-background border border-border rounded p-3 font-mono whitespace-pre-wrap break-words">{`question,type,required,option1,option2
 "What is your age?",number,true
 "Select your gender",multiple_choice,true,Male,Female,Non-binary,Prefer not to say
 "Describe your experience",long_text,false
@@ -179,10 +182,11 @@ Return only valid JSON matching this schema, no extra text.`,
               </div>
               <div
                 onClick={() => document.getElementById("csv-upload").click()}
-                className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all"
+                className="border-2 border-dashed border-border rounded p-8 text-center cursor-pointer hover:border-primary/40 hover:bg-accent/30 transition-all"
               >
                 <Table className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
                 <p className="font-medium">Upload CSV file</p>
+                <p className="text-sm text-muted-foreground mt-1">CSV Tool will extract and format questions automatically</p>
               </div>
               <input id="csv-upload" type="file" accept=".csv" className="hidden" onChange={handleCSV} />
             </TabsContent>

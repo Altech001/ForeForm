@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/foreform";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate } from "lucide-react";
+import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [showTemplates, setShowTemplates] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ["forms"],
@@ -79,68 +80,71 @@ export default function Dashboard() {
         />
       )}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/letter-m.png" alt="FormFlow Logo" className="w-10 h-10 object-contain" />
-            <h1 className="text-xl font-bold tracking-tight">FormFlow</h1>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <img src="/letter-m.png" alt="FormFlow Logo" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+            <h1 className="text-lg sm:text-xl font-black tracking-tight">ForeForm</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" asChild className="gap-2">
-              <Link to="/ai-respondents"><Bot className="w-4 h-4" /> AI Respondents</Link>
+            <Button variant="destructive" asChild className="gap-2 h-9 sm:h-10 px-3 sm:px-4">
+              <Link to="/ai-respondents">
+                <Bot className="w-4 h-4" />
+                <span className="hidden sm:inline">AI Respondents</span>
+              </Link>
             </Button>
-            <Button variant="outline" onClick={() => setShowTemplates(true)} className="gap-2">
-              <LayoutTemplate className="w-4 h-4" /> Templates
-            </Button>
-            <Button onClick={createForm} className="gap-2">
-              <Plus className="w-4 h-4" /> New Form
+            <Button onClick={createForm} className="gap-2 h-9 sm:h-10 px-3 sm:px-4">
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">New Form</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          {[
-            { label: "Total Forms", value: forms.length, icon: "/forms.png", color: "text-primary" },
-            { label: "Published", value: publishedCount, icon: BarChart3, color: "text-chart-3" },
-            { label: "Total Responses", value: totalResponses, icon: Users, color: "text-chart-2" },
-          ].map((stat) => (
-            <div key={stat.label} className=" border border-border/60 rounded-xl p-5 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden">
-                {typeof stat.icon === 'string' ? (
-                  <img src={stat.icon} alt={stat.label} className="w-6 h-6 object-contain" />
-                ) : (
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                )}
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Quick Tools */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-4">Quick Tools</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <button onClick={createForm} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <img src="/form.png" alt="New Form" className="w-10 h-10 object-contain drop-shadow-sm" />
-              <span className="text-sm font-medium">New Form</span>
+          <h2 className="text-sm font-bold mb-4">Quick Tools</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <button onClick={createForm} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
+              <img src="/form.png" alt="New Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
+              <span className="text-xs sm:text-sm font-medium">New Form</span>
             </button>
-            <button onClick={() => setShowTemplates(true)} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <img src="/forms.png" alt="Browse Templates" className="w-10 h-10 object-contain drop-shadow-sm" />
-              <span className="text-sm font-medium">Browse Templates</span>
+            <button onClick={() => setShowTemplates(true)} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
+              <img src="/layout.png" alt="Browse Templates" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
+              <span className="text-xs sm:text-sm font-medium">Browse Templates</span>
             </button>
-            <button onClick={() => navigate('/complex-ai')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <img src="/user.png" alt="Generate Form" className="w-10 h-10 object-contain drop-shadow-sm" />
-              <span className="text-sm font-medium">Generate Form</span>
+            <button onClick={() => navigate('/complex-ai')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
+              <img src="/star.png" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
+              <span className="text-xs sm:text-sm font-medium">Generate Form</span>
             </button>
-            <button onClick={() => navigate('/docx-preview')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded-xl p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <img src="/docx.png" alt="Import CSV" className="w-10 h-10 object-contain drop-shadow-sm" />
-              <span className="text-sm font-medium">Preview Word Files</span>
+            <button onClick={() => navigate('/docx-preview')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
+              <img src="/docx.png" alt="Import CSV" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
+              <span className="text-xs sm:text-sm font-medium">Preview Word</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Forms list header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-base font-semibold flex gap-2"><span><Monitor className="w-5 h-5" /> </span>All</h2>
+          <div className="flex items-center gap-2 bg-muted/30 p-1.5 rounded-full border border-border/20">
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${viewMode === "grid"
+                ? "bg-background text-primary shadow border border-border/40"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" /> Grid
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${viewMode === "list"
+                ? "bg-background text-primary shadow border border-border/40"
+                : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <List className="w-3.5 h-3.5" /> List
             </button>
           </div>
         </div>
@@ -159,21 +163,22 @@ export default function Dashboard() {
             </div>
             <h2 className="text-xl font-semibold mb-2">No forms yet</h2>
             <p className="text-muted-foreground mb-6">Start from a template or build from scratch</p>
-            <div className="flex items-center gap-3 justify-center">
-              <Button variant="outline" onClick={() => setShowTemplates(true)} className="gap-2">
+            <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
+              <Button variant="outline" onClick={() => setShowTemplates(true)} className="gap-2 w-full sm:w-auto">
                 <LayoutTemplate className="w-4 h-4" /> Browse Templates
               </Button>
-              <Button onClick={createForm} className="gap-2">
+              <Button onClick={createForm} className="gap-2 w-full sm:w-auto">
                 <Plus className="w-4 h-4" /> Start from Scratch
               </Button>
             </div>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "grid gap-4"}>
             {forms.map((form) => (
               <FormCard
                 key={form.id}
                 form={form}
+                view={viewMode}
                 onDelete={(id) => deleteMutation.mutate(id)}
                 onCopyLink={copyLink}
               />

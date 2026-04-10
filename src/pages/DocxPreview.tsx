@@ -13,8 +13,11 @@ import {
     ChevronRight,
     Loader2,
     Settings2,
-    CheckCircle2
+    CheckCircle2,
+    Menu,
+    Eye
 } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { generateDocxBlob, downloadDocx } from "@/lib/generateDocx";
@@ -40,6 +43,8 @@ export default function DocxPreview() {
     const [selectedResponseId, setSelectedResponseId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [isExportingAll, setIsExportingAll] = useState(false);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState("preview");
 
     // Editable state for the current response
     const [editableResponse, setEditableResponse] = useState<any>(null);
@@ -148,122 +153,149 @@ export default function DocxPreview() {
         }
     };
 
+    const renderSidebar = () => (
+        <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r w-80 max-w-[80vw]">
+            <div className="p-4 border-b shrink-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Select Survey</Label>
+                <select
+                    className="w-full bg-transparent dark:bg-slate-800 border rounded px-3 py-2 text-sm outline-none focus:ring-primary"
+                    value={selectedFormId || ""}
+                    onChange={(e) => {
+                        setSelectedFormId(e.target.value);
+                        setSelectedResponseId(null);
+                    }}
+                >
+                    <option value="">Choose a form...</option>
+                    {forms.map(f => (
+                        <option key={f.id} value={f.id}>{f.title}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 flex items-center gap-2 shrink-0">
+                    <div className="relative flex-1 bg-transparent">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder="Search respondents..."
+                            className="pl-9 h-9 text-xs"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-2 pb-4">
+                    {!selectedFormId ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
+                            <FileText className="w-8 h-8 mb-2" />
+                            <p className="text-xs">Select a form to see responses</p>
+                        </div>
+                    ) : isLoadingResponses ? (
+                        <div className="flex justify-center py-10">
+                            <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
+                        </div>
+                    ) : filteredResponses.length === 0 ? (
+                        <p className="text-center py-10 text-xs text-muted-foreground">No responses found</p>
+                    ) : (
+                        <div className="space-y-1">
+                            {filteredResponses.map(r => (
+                                <button
+                                    key={r.id}
+                                    onClick={() => {
+                                        setSelectedResponseId(r.id);
+                                        setIsSidebarOpen(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2.5 rounded transition-all group ${selectedResponseId === r.id
+                                        ? "bg-primary text-primary-foreground shadow shadow-primary/20"
+                                        : "hover:bg-slate-50 dark:hover:bg-slate-800"
+                                        }`}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold truncate flex-1">
+                                            {r.respondent_name || "Anonymous"}
+                                        </span>
+                                        <ChevronRight className={`w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity ${selectedResponseId === r.id ? "hidden" : ""}`} />
+                                    </div>
+                                    <p className={`text-[10px] mt-0.5 truncate ${selectedResponseId === r.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                        {r.respondent_email || "No email"}
+                                    </p>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="flex flex-col h-screen bg-transparent dark:bg-slate-950">
             {/* Header */}
-            <header className="flex-shrink-0 bg-white dark:bg-slate-900 border-b px-6 py-4 flex items-center justify-between shadow-sm z-20">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full">
+            <header className="flex-shrink-0 bg-white dark:bg-slate-900 border-b px-4 lg:px-6 py-4 flex items-center justify-between shadow-sm z-20">
+                <div className="flex items-center gap-2 lg:gap-4">
+                    <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon" className="lg:hidden rounded-full shrink-0">
+                                <Menu className="w-5 h-5" />
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="p-0 w-auto border-none">
+                            <SheetHeader className="sr-only">
+                                <SheetTitle>Navigation</SheetTitle>
+                            </SheetHeader>
+                            {renderSidebar()}
+                        </SheetContent>
+                    </Sheet>
+
+                    <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-full hidden lg:flex shrink-0">
                         <ArrowLeft className="w-5 h-5" />
                     </Button>
                     <div className="flex items-center gap-2">
-                        <img src="/docx.png" alt="DOCX" className="w-8 h-8" />
+                        <img src="/docx.png" alt="DOCX" className="w-8 h-8 hidden sm:block" />
                         <div>
-                            <h1 className="text-lg font-bold">Word Preview & Export</h1>
-                            <p className="text-xs text-muted-foreground">Preview, edit and batch download survey reports</p>
+                            <h1 className="text-base sm:text-lg font-bold line-clamp-1">Word Preview & Export</h1>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Preview, edit and batch download survey reports</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                     {selectedFormId && (
                         <Button
                             variant="outline"
+                            size="sm"
                             disabled={responses.length === 0 || isExportingAll}
                             onClick={handleDownloadAll}
                             className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800"
                         >
-                            {isExportingAll ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileArchive className="w-4 h-4 mr-2" />}
-                            Download All ({responses.length})
+                            {isExportingAll ? <Loader2 className="w-4 h-4 animate-spin sm:mr-2" /> : <FileArchive className="w-4 h-4 sm:mr-2" />}
+                            <span className="hidden sm:inline">Download All ({responses.length})</span>
                         </Button>
                     )}
                     {selectedResponse && (
-                        <Button onClick={() => downloadDocx(selectedForm, editableResponse)} className="gap-2 bg-primary">
-                            <Download className="w-4 h-4" /> Download Current
+                        <Button size="sm" onClick={() => downloadDocx(selectedForm, editableResponse)} className="bg-primary gap-1 sm:gap-2">
+                            <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download Current</span>
                         </Button>
                     )}
                 </div>
             </header>
 
-            <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar - Form & Response Selection */}
-                <aside className="w-80 border-r bg-white dark:bg-slate-900 flex flex-col">
-                    <div className="p-4 border-b">
-                        <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Select Survey</Label>
-                        <select
-                            className="w-full bg-transparent dark:bg-slate-800 border rounded px-3 py-2 text-sm outline-none focus:ring-primary"
-                            value={selectedFormId || ""}
-                            onChange={(e) => {
-                                setSelectedFormId(e.target.value);
-                                setSelectedResponseId(null);
-                            }}
-                        >
-                            <option value="">Choose a form...</option>
-                            {forms.map(f => (
-                                <option key={f.id} value={f.id}>{f.title}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <div className="p-4 flex items-center gap-2">
-                            <div className="relative flex-1 bg-transparent">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search respondents..."
-                                    className="pl-9 h-9 text-xs"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto px-2 pb-4">
-                            {!selectedFormId ? (
-                                <div className="flex flex-col items-center justify-center py-10 text-center opacity-40">
-                                    <FileText className="w-8 h-8 mb-2" />
-                                    <p className="text-xs">Select a form to see responses</p>
-                                </div>
-                            ) : isLoadingResponses ? (
-                                <div className="flex justify-center py-10">
-                                    <Loader2 className="w-6 h-6 animate-spin text-primary/50" />
-                                </div>
-                            ) : filteredResponses.length === 0 ? (
-                                <p className="text-center py-10 text-xs text-muted-foreground">No responses found</p>
-                            ) : (
-                                <div className="space-y-1">
-                                    {filteredResponses.map(r => (
-                                        <button
-                                            key={r.id}
-                                            onClick={() => setSelectedResponseId(r.id)}
-                                            className={`w-full text-left px-3 py-2.5 rounded transition-all group ${selectedResponseId === r.id
-                                                ? "bg-primary text-primary-foreground shadow shadow-primary/20"
-                                                : "hover:bg-transparent dark:hover:bg-slate-800"
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-xs font-semibold truncate flex-1">
-                                                    {r.respondent_name || "Anonymous"}
-                                                </span>
-                                                <ChevronRight className={`w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity ${selectedResponseId === r.id ? "hidden" : ""}`} />
-                                            </div>
-                                            <p className={`text-[10px] mt-0.5 truncate ${selectedResponseId === r.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                                                {r.respondent_email || "No email"}
-                                            </p>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </aside>
+            <div className="flex flex-1 overflow-hidden relative">
+                {/* Desktop Sidebar */}
+                <div className="hidden lg:block h-full border-r bg-white dark:bg-slate-900">
+                    {renderSidebar()}
+                </div>
 
                 {/* Main Content Area */}
-                <main className="flex-1 flex overflow-hidden">
+                <main className="flex-1 flex flex-col overflow-hidden relative">
                     {selectedResponse && editableResponse ? (
-                        <>
+                        <div className="flex flex-1 flex-col lg:flex-row overflow-hidden w-full h-full">
+
+
+
                             {/* Editor Panel */}
-                            <div className="w-96 border-r bg-white dark:bg-slate-900 flex flex-col p-6 overflow-y-auto shadow-inner  custom-scrollbar">
+                            <div className={`${activeTab === "edit" ? "flex" : "hidden"} lg:flex w-full lg:w-80 xl:w-96 border-r bg-white dark:bg-slate-900 flex-col p-6 pb-28 lg:pb-6 overflow-y-auto shadow-inner custom-scrollbar shrink-0`}>
                                 <div className="flex items-center gap-2 mb-6">
                                     <Settings2 className="w-4 h-4 text-primary" />
                                     <h2 className="text-sm font-bold uppercase tracking-tight">Edit Payload</h2>
@@ -378,7 +410,7 @@ export default function DocxPreview() {
                             </div>
 
                             {/* Preview Panel */}
-                            <div className="flex-1 flex flex-col dark:bg-slate-950 overflow-hidden p-8 relative">
+                            <div className={`${activeTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 flex-col dark:bg-slate-900 overflow-hidden p-4 sm:p-8 pb-28 lg:pb-8 relative bg-slate-50`}>
                                 <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-white text-black rounded overflow-y-auto custom-scrollbar flex flex-col">
                                     <div className="flex-shrink-0 px-8 py-4 border-b flex items-center justify-between bg-transparent select-none">
                                         <div className="flex items-center gap-2">
@@ -436,7 +468,25 @@ export default function DocxPreview() {
                                     }
                                 `}</style>
                             </div>
-                        </>
+
+                            {/* Mobile Floating Segmented Control */}
+                            <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 flex bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border shadow-2xl rounded-full p-1.5 gap-1.5 z-50 w-[85%] max-w-[300px]">
+                                <button
+                                    onClick={() => setActiveTab("edit")}
+                                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-full transition-all flex-1 ${activeTab === "edit" ? "bg-primary text-primary-foreground shadow-md scale-[1.02]" : "text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800/50"}`}
+                                >
+                                    <Settings2 className="w-3.5 h-3.5" />
+                                    <span>Edit</span>
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab("preview")}
+                                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-full transition-all flex-1 ${activeTab === "preview" ? "bg-primary text-primary-foreground shadow-md scale-[1.02]" : "text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800/50"}`}
+                                >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Preview</span>
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-4">
                             <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-900 border flex items-center justify-center shadow-lg animate-bounce duration-[2000ms]">

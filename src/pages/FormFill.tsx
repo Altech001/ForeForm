@@ -200,7 +200,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
           {branding.logo_url ? (
             <img src={branding.logo_url} alt="logo" className="h-8 object-contain" />
           ) : (
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+            <div className="w-7 h-7 rounded flex items-center justify-center">
 
               <img src="/letter-m.png" alt="logo" className="h-8 object-contain" />
             </div>
@@ -237,7 +237,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
               <motion.div key="intro" custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="space-y-6">
                 <FormHeader form={form} questions={questions} />
 
-                <div className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-5" onKeyDown={handleKeyDown}>
+                <div className="bg-card border border-border rounded p-8 shadow-none space-y-5" onKeyDown={handleKeyDown}>
                   <h2 className="font-semibold">Participant Details</h2>
                   <div className="space-y-1.5">
                     <Label>Full Name <span className="text-destructive">*</span></Label>
@@ -245,10 +245,10 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                   </div>
                   <div className="space-y-1.5">
                     <Label>Email Address <span className="text-muted-foreground text-xs">(response copy sent here)</span></Label>
-                    <Input type="email" value={respondentEmail} onChange={(e) => setRespondentEmail(e.target.value)} placeholder="email@example.com" className="h-11" />
+                    <Input type="email" value={respondentEmail} onChange={(e) => setRespondentEmail(e.target.value)} placeholder="prpt@foreform.com" className="h-11" />
                   </div>
                   {branding.consent_text && (
-                    <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-xl border border-border">
+                    <div className="flex items-start gap-3 p-4 bg-transparent rounded border border-primary/40">
                       <input
                         type="checkbox"
                         id="consent"
@@ -256,7 +256,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                         onChange={(e) => { setConsentChecked(e.target.checked); setValidationError(""); }}
                         className="mt-1 w-4 h-4 accent-primary flex-shrink-0"
                       />
-                      <label htmlFor="consent" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">{branding.consent_text}</label>
+                      <label htmlFor="consent" className="text-sm text-primary/50 leading-relaxed cursor-pointer">{branding.consent_text}</label>
                     </div>
                   )}
                   {validationError && <p className="text-sm text-destructive">{validationError}</p>}
@@ -269,7 +269,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
             {/* QUESTION */}
             {typeof step === "number" && currentQuestion && (
-              <motion.div key={`q-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-6" onKeyDown={handleKeyDown}>
+              <motion.div key={`q-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded p-8 shadow-none space-y-6" onKeyDown={handleKeyDown}>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">Question {step + 1} of {questions.length}</span>
                 </div>
@@ -297,7 +297,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
             {/* SIGNATURE STEP */}
             {step === SIGN_STEP && (
-              <motion.div key="sign" custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded-2xl p-8 shadow-sm space-y-6">
+              <motion.div key="sign" custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded p-8 shadow-none space-y-6">
                 <div>
                   <h2 className="text-xl font-bold mb-1">Participant Signature</h2>
                   <p className="text-sm text-muted-foreground">By signing below, you confirm that all information provided is accurate and that you consent to participate in this study.</p>

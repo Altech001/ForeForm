@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { useAuth } from '@/lib/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { FileText, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { GoogleLogin } from '@react-oauth/google';
+import { Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function Signup() {
     const { registerUser, googleLoginUser } = useAuth();
@@ -29,11 +29,11 @@ export default function Signup() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-            <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50/0 p-4">
+            <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow-sm border border-slate-100">
                 <div className="text-center">
-                    <div className="mx-auto w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4">
-                        <FileText className="w-6 h-6" />
+                    <div className="mx-auto w-12 h-12 *:text-primary rounded-xl flex items-center justify-center mb-4">
+                        <img src="/letter-m.png" alt="Logo" />
                     </div>
                     <h2 className="text-2xl font-bold tracking-tight text-slate-900">Create an account</h2>
                     <p className="text-sm text-slate-500 mt-2">Start building powerful forms today</p>
@@ -48,7 +48,7 @@ export default function Signup() {
                                 required
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                 placeholder="Jane Doe"
                             />
                         </div>
@@ -59,7 +59,7 @@ export default function Signup() {
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                 placeholder="you@example.com"
                             />
                         </div>
@@ -70,7 +70,7 @@ export default function Signup() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                                className="w-full px-3 py-2 border border-slate-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
                                 placeholder="••••••••"
                                 minLength={6}
                             />

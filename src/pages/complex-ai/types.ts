@@ -14,6 +14,11 @@ export interface Question {
     label: string;
     required: boolean;
     options?: string[];
+    condition?: {
+        source_question_id: string;
+        operator: string;
+        value: string;
+    } | null;
 }
 
 export interface QuestionTypeInfo {
@@ -40,9 +45,8 @@ export const TYPE_MAP: Record<string, string> = Object.fromEntries(
 export const HAS_OPTS = ["multiple_choice", "checkbox", "dropdown"];
 
 export const EXAMPLES = [
-    "Employee onboarding survey",
-    "Customer satisfaction form",
+    "Process Survey Form",
     "Job application form",
-    "Event registration",
+    "Proposal Survey Form",
     "Product feedback + NPS",
 ];

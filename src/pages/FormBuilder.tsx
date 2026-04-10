@@ -35,7 +35,7 @@ export default function FormBuilder() {
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState([]);
   const [status, setStatus] = useState("draft");
-  const [branding, setBranding] = useState({});
+  const [branding, setBranding] = useState<any>({});
   const [currentUser, setCurrentUser] = React.useState(null);
 
   React.useEffect(() => {
@@ -53,7 +53,7 @@ export default function FormBuilder() {
   }, [form]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => base44.entities.Form.update(formId, data),
+    mutationFn: (data: any) => base44.entities.Form.update(formId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formId] });
       queryClient.invalidateQueries({ queryKey: ["forms"] });
@@ -61,7 +61,7 @@ export default function FormBuilder() {
     },
   });
 
-  const handleSave = (newStatus) => {
+  const handleSave = (newStatus?: string) => {
     const s = newStatus || status;
     saveMutation.mutate({ title, description, questions, status: s, branding });
     if (newStatus) setStatus(newStatus);
@@ -103,44 +103,46 @@ export default function FormBuilder() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" asChild><Link to="/"><ArrowLeft className="w-4 h-4" /></Link></Button>
-            <Badge variant="secondary" className={status === "published" ? "bg-primary/10 text-primary" : ""}>{status}</Badge>
+      <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10 pb-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Button variant="ghost" size="icon" asChild className="shrink-0"><Link to="/"><ArrowLeft className="w-4 h-4" /></Link></Button>
+            <Badge variant="secondary" className={status === "published" ? "bg-primary/10 text-primary shrink-0" : "shrink-0"}>{status}</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {status === "published" && (
               <>
-                <Button variant="outline" size="sm" onClick={copyLink} className="gap-1.5"><Link2 className="w-4 h-4" /> Copy Link</Button>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/f/${formId}`} target="_blank"><Eye className="w-4 h-4 mr-1" /> Preview</Link>
+                <Button variant="outline" size="sm" onClick={copyLink} className="gap-1.5 px-2.5 sm:px-3"><Link2 className="w-4 h-4" /> <span className="hidden sm:inline">Copy Link</span></Button>
+                <Button variant="outline" size="sm" asChild className="px-2.5 sm:px-3">
+                  <Link to={`/f/${formId}`} target="_blank"><Eye className="w-4 h-4 sm:mr-1" /> <span className="hidden sm:inline">Preview</span></Link>
                 </Button>
               </>
             )}
-            <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saveMutation.isPending} className="gap-1.5">
-              <Save className="w-4 h-4" /> Save
+            <Button variant="outline" size="sm" onClick={() => handleSave()} disabled={saveMutation.isPending} className="gap-1.5 px-2.5 sm:px-3">
+              <Save className="w-4 h-4" /> <span className="hidden sm:inline">Save</span>
             </Button>
             {status !== "published" && (
-              <Button size="sm" onClick={() => handleSave("published")} disabled={saveMutation.isPending} className="gap-1.5">
-                <Send className="w-4 h-4" /> Publish
+              <Button size="sm" onClick={() => handleSave("published")} disabled={saveMutation.isPending} className="gap-1.5 px-2.5 sm:px-3">
+                <Send className="w-4 h-4" /> <span className="hidden sm:inline">Publish</span>
               </Button>
             )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Tabs defaultValue="questions">
-          <TabsList className="mb-6">
-            <TabsTrigger value="questions">Questions</TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" /> Research & Branding</TabsTrigger>
-            <TabsTrigger value="team" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Team Access</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto pb-2 sm:pb-0 mb-4 sm:mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="sm:w-auto inline-flex justify-start sm:justify-center min-w-max">
+              <TabsTrigger value="questions">Questions</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" /> R & B</TabsTrigger>
+              <TabsTrigger value="team" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Teams</TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="questions" className="space-y-6">
+          <TabsContent value="questions" className="space-y-4 sm:space-y-6">
             {/* Form meta */}
-            <div className="bg-card border border-border rounded-xl p-6 space-y-3">
+            <div className="bg-card border border-border rounded p-4 sm:p-6 space-y-3">
               {branding.logo_url && (
                 <img src={branding.logo_url} alt="logo" className="h-12 object-contain mb-2" />
               )}
@@ -208,7 +210,7 @@ export default function FormBuilder() {
           </TabsContent>
 
           <TabsContent value="settings">
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="bg-card rounded p-4 sm:p-6">
               <h2 className="font-semibold text-base mb-5 flex items-center gap-2">
                 <Settings2 className="w-4 h-4 text-primary" /> Research & Branding Settings
               </h2>
@@ -220,7 +222,7 @@ export default function FormBuilder() {
           </TabsContent>
 
           <TabsContent value="team">
-            <div className="bg-card border border-border rounded-xl p-6">
+            <div className="bg-card  rounded p-4 sm:p-6">
               <h2 className="font-semibold text-base mb-1 flex items-center gap-2">
                 <Users className="w-4 h-4 text-primary" /> Team Access
               </h2>

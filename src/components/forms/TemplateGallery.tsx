@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Sparkles, HeartPulse, GraduationCap, Users, Star, Briefcase, MessageSquare, ShoppingBag, Microscope, ChevronRight, Image, Columns2, Minus, Layers, Layout } from "lucide-react";
+import { X, Sparkles, HeartPulse, GraduationCap, Users, Star, Briefcase, MessageSquare, ShoppingBag, Microscope, ChevronRight, Image, Columns2, Minus, Layers, Layout, Plus } from "lucide-react";
 import { THEMES, COVER_IMAGES } from "@/lib/formThemes";
 
 // ─── Template Data ────────────────────────────────────────────────────────────
@@ -278,34 +278,35 @@ export default function TemplateGallery({ onUseTemplate, onClose, onStartFromScr
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
       {/* Header */}
-      <div className="border-b border-border/60 bg-card/80 backdrop-blur-sm px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl  flex items-center justify-center">
-            <img src="/form.png" alt="Logo" className="w-9 h-9" />
+      <div className="border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center shrink-0">
+            <img src="/form.png" alt="Logo" className="w-8 h-8 sm:w-9 sm:h-9" />
           </div>
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Form Templates</h2>
-            <p className="text-xs text-muted-foreground">Each template has a unique design theme, pick one and customise</p>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold tracking-tight truncate">Form Templates</h2>
+            <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1">Pick a theme and customize</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={onStartFromScratch || onClose} className="gap-2 hover:border-primary hover:text-primary hover:bg-transparent">
-            Start from Scratch <ChevronRight className="w-4 h-4" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onStartFromScratch || onClose} className="gap-2 hover:border-primary hover:text-primary hover:bg-transparent px-2 sm:px-3">
+            <span className="hidden sm:inline">Start from Scratch</span>
+            <Plus className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} className="hover:border-primary hover:text-primary">
+          <Button variant="ghost" size="icon" onClick={onClose} className="hover:border-primary hover:text-primary h-8 w-8">
             <X className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       {/* Category filter */}
-      <div className="px-6 py-4 border-b border-border/40 bg-card/50">
+      <div className="px-4 sm:px-6 py-3 border-b border-border/40 bg-card/50">
         <div className="flex gap-2 flex-wrap">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all border ${activeCategory === cat
+              className={`px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all border ${activeCategory === cat
                 ? "bg-primary text-primary-foreground border-primary shadow-sm"
                 : "bg-card border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
@@ -359,13 +360,13 @@ export default function TemplateGallery({ onUseTemplate, onClose, onStartFromScr
                   </div>
                 </div>
 
-                {/* Hover overlay */}
+                {/* Hover/Tap overlay */}
                 <div
-                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered === tpl.id ? "opacity-100" : "opacity-0"}`}
+                  className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${hovered === tpl.id ? "opacity-100" : "opacity-0"} md:pointer-events-none`}
                   style={{ background: "rgba(0,0,0,0.18)" }}
                 >
                   <div
-                    className="text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-xl"
+                    className="text-white text-xs sm:text-sm font-semibold px-4 sm:px-5 py-2 sm:py-2.5 rounded-full shadow-xl"
                     style={{ background: theme.primary }}
                   >
                     Use Template
