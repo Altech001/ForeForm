@@ -15,20 +15,14 @@ import { toast } from "sonner";
 import { randomUgandanName, randomUgandaLocation, generateSimpleSignature, UGANDA_DISTRICTS } from "@/lib/ugandaLocations";
 import OpenAI from "openai";
 
+const groq = new OpenAI({
+  apiKey: import.meta.env.VITE_GROQ_API_KEY,
+  baseURL: "https://api.groq.com/openai/v1",
+  dangerouslyAllowBrowser: true,
+});
+
+
 const REGION_OPTIONS = ["All Regions", "Central", "Eastern", "Northern", "Western"];
-
-function createGroqClient() {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error("AI respondents need VITE_GROQ_API_KEY to be set in the frontend environment.");
-  }
-
-  return new OpenAI({
-    apiKey,
-    baseURL: "https://api.groq.com/openai/v1",
-    dangerouslyAllowBrowser: true,
-  });
-}
 
 function StatusBadge({ status }) {
   if (status === "pending") return <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Pending</span>;
@@ -88,16 +82,13 @@ export default function AIRespondents() {
     if (!selectedForm || respondents.length === 0) return;
     setIsRunning(true);
 
-    try {
-      const groq = createGroqClient();
+    for (const respondent of respondents) {
+      // Step 1: Generate AI answers
+      updateRespondent(respondent.id, { status: "generating" });
 
-      for (const respondent of respondents) {
-        // Step 1: Generate AI answers
-        updateRespondent(respondent.id, { status: "generating" });
-
-        const response = await groq.responses.create({
-          model: "openai/gpt-oss-20b",
-          input: `You are a research participant from ${respondent.location.locality}, ${respondent.location.name} District, Uganda (${respondent.location.region} Region).
+      const response = await groq.responses.create({
+        model: "openai/gpt-oss-20b",
+        input: `You are a research participant from ${respondent.location.locality}, ${respondent.location.name} District, Uganda (${respondent.location.region} Region).
 Your name is ${respondent.name}. Answer the following survey questions naturally and realistically, drawing on the context of living in Uganda. Keep answers concise but meaningful.
 
 Form Title: ${selectedForm.title}
@@ -112,63 +103,59 @@ Return ONLY a JSON object with this EXACT structure:
     { "question_id": "...", "answer": "..." }
   ]
 }`,
-        });
+      });
 
-        let result = { answers: [] };
-        try {
-          const text = response.output_text || "";
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            result = JSON.parse(jsonMatch[0]);
-          }
-        } catch (e) {
-          console.error("Failed to parse AI response:", e);
+      let result = { answers: [] };
+      try {
+        const text = response.output_text || "";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
         }
-
-        const answersMap = {};
-        (result.answers || []).forEach(a => { answersMap[a.question_id] = a.answer; });
-
-        const formattedAnswers = (selectedForm.questions || []).map(q => ({
-          question_id: q.id,
-          question_label: q.label,
-          question_type: q.type,
-          answer: answersMap[q.id] || (q.options?.length ? q.options[0] : "N/A"),
-        }));
-
-        // Step 2: Generate signature
-        const signatureDataUrl = generateSimpleSignature(respondent.name);
-
-        updateRespondent(respondent.id, { status: "submitting", answers: formattedAnswers });
-
-        // Step 3: Submit response
-        await base44.entities.FormResponse.create({
-          form_id: selectedForm.id,
-          respondent_name: respondent.name,
-          respondent_email: respondent.email,
-          answers: formattedAnswers,
-          signature_data_url: signatureDataUrl,
-          gps_latitude: respondent.location.lat,
-          gps_longitude: respondent.location.lng,
-          gps_accuracy: respondent.location.accuracy,
-          gps_address: respondent.location.locality,
-        });
-
-        await base44.entities.Form.update(selectedForm.id, {
-          response_count: (selectedForm.response_count || 0) + 1,
-        });
-
-        updateRespondent(respondent.id, { status: "done", signature: signatureDataUrl });
+      } catch (e) {
+        console.error("Failed to parse AI response:", e);
       }
 
-      queryClient.invalidateQueries({ queryKey: ["forms"] });
-      queryClient.invalidateQueries({ queryKey: ["responses", selectedFormId] });
-      toast.success(`${respondents.length} AI respondents submitted successfully!`);
-    } catch (error) {
-      console.error(error);
-      toast.error(error instanceof Error ? error.message : "AI respondent generation failed.");
-    } finally {
-      setIsRunning(false);
+
+      const answersMap = {};
+      (result.answers || []).forEach(a => { answersMap[a.question_id] = a.answer; });
+
+      const formattedAnswers = (selectedForm.questions || []).map(q => ({
+        question_id: q.id,
+        question_label: q.label,
+        question_type: q.type,
+        answer: answersMap[q.id] || (q.options?.length ? q.options[0] : "N/A"),
+      }));
+
+      // Step 2: Generate signature
+      const signatureDataUrl = generateSimpleSignature(respondent.name);
+
+      updateRespondent(respondent.id, { status: "submitting", answers: formattedAnswers });
+
+      // Step 3: Submit response
+      await base44.entities.FormResponse.create({
+        form_id: selectedForm.id,
+        respondent_name: respondent.name,
+        respondent_email: respondent.email,
+        answers: formattedAnswers,
+        signature_data_url: signatureDataUrl,
+        gps_latitude: respondent.location.lat,
+        gps_longitude: respondent.location.lng,
+        gps_accuracy: respondent.location.accuracy,
+        gps_address: respondent.location.locality,
+      });
+
+      await base44.entities.Form.update(selectedForm.id, {
+        response_count: (selectedForm.response_count || 0) + 1,
+      });
+
+      updateRespondent(respondent.id, { status: "done", signature: signatureDataUrl });
     }
+
+    queryClient.invalidateQueries({ queryKey: ["forms"] });
+    queryClient.invalidateQueries({ queryKey: ["responses", selectedFormId] });
+    toast.success(`${respondents.length} AI respondents submitted successfully!`);
+    setIsRunning(false);
   };
 
   const doneCount = respondents.filter(r => r.status === "done").length;
