@@ -7,6 +7,8 @@ import { base44 } from "@/api/foreform";
 import { Phase, Question, Message, EXAMPLES } from "./complex-ai/types";
 import { PromptPhase } from "./complex-ai/PromptPhase";
 import { EditorPhase } from "./complex-ai/EditorPhase";
+import { useAgentSettings } from "@/hooks/useAgentSettings";
+import { AIService } from "@/service/ai_service";
 
 
 /* ─── AI Client ────────────────────────────────────────────── */
@@ -42,8 +44,12 @@ export default function ComplexAI() {
         { id: "0", role: "ai", text: "Hi! Tell me what kind of form you need." },
     ]);
     const [inputVal, setInputVal] = useState("");
+    const [fileContext, setFileContext] = useState("");
+    const [fileName, setFileName] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    const { settings } = useAgentSettings();
 
     /* Editor-phase state */
     const [refineVal, setRefineVal] = useState("");
@@ -72,55 +78,40 @@ export default function ComplexAI() {
         setQuestions((prev) => [...prev, newQ]);
     };
 
-    /* ── AI logic ── */
+    async function handleAIResponseData(questionsList: any[]) {
+        setQuestions([]);
+        let acc: Question[] = [];
+        for (const q of questionsList) {
+            await new Promise((r) => setTimeout(r, 120));
+            if (!q.options) q.options = [];
+            if (q.title && !q.label) q.label = q.title;
+            const finalQ = { ...q, id: String(q.id || uid()) };
+            acc = [...acc, finalQ];
+            setQuestions([...acc]);
+        }
+        toast.success("Form generated!");
+    }
+
     async function callAI(prompt: string, refine = "") {
         setIsGen(true);
-        setQuestions([]);
-
         try {
-            let finalPrompt = `Form for: "${prompt}". ${refine ? "Additional instruction: " + refine : ""}`;
-
-            if (file) {
-                toast.loading("Uploading context document...");
-                const { file_url } = await base44.integrations.Core.UploadFile({ file });
-                finalPrompt += ` [Context from uploaded file: ${file_url}]`;
-                toast.dismiss();
-            }
-
-            const result = await base44.integrations.Core.InvokeLLM({
-                prompt: finalPrompt,
+            const data = await AIService.invoke(settings.model, {
+                messages: [{ role: "user", text: prompt }],
+                refinePrompt: refine,
+                systemPrompt: settings.systemPrompt,
+                temperature: settings.temperature,
+                apiKey: settings.model.startsWith("gemini") ? settings.geminiApiKey : settings.openAIApiKey
             });
-
-            // The bridge might return a JSON string or an object depending on fetchApi
-            let data = typeof result === "string" ? JSON.parse(result) : result;
-
-            // If the bridge wrapping it in a stringified property
-            if (typeof data === "string") data = JSON.parse(data);
-
-            const questionsList = data.questions || [];
-
-            if (Array.isArray(questionsList)) {
-                let acc: Question[] = [];
-                for (const q of questionsList) {
-                    await new Promise((r) => setTimeout(r, 120));
-                    if (!q.options) q.options = [];
-                    if (q.title && !q.label) q.label = q.title;
-                    const finalQ = { ...q, id: String(q.id || uid()) };
-                    acc = [...acc, finalQ];
-                    setQuestions([...acc]);
-                }
-                toast.success("Form generated!");
+            const qs = data.questions || [];
+            if (qs.length) {
+                await handleAIResponseData(qs);
             } else {
-                throw new Error("Bad shape");
+                throw new Error("No questions returned for refinement.");
             }
         } catch (e: any) {
             console.error("AI Error:", e);
             toast.error("AI failed — showing sample questions.");
-            const samples = getSampleQuestions(prompt);
-            for (const q of samples) {
-                await new Promise((r) => setTimeout(r, 100));
-                setQuestions((prev) => [...prev, q]);
-            }
+            await handleAIResponseData(getSampleQuestions(prompt));
         } finally {
             setIsGen(false);
         }
@@ -130,18 +121,56 @@ export default function ComplexAI() {
         const val = (typeof overridePrompt === "string" ? overridePrompt : inputVal).trim();
         if (!val || isGenerating) return;
 
-        setCurrentPrompt(val);
-        setMessages((m) => [
-            ...m,
-            { id: uid(), role: "user", text: val },
-            { id: uid(), role: "ai", text: "Got it! Generating your form now — switching to the editor…" },
-        ]);
-        setInputVal("");
+        setIsGen(true);
+        const userMsg: Message = { id: uid(), role: "user", text: val };
+        const updatedMsgs = [...messages, userMsg];
+        setMessages(updatedMsgs);
         if (textareaRef.current) textareaRef.current.style.height = "auto";
+        setInputVal("");
 
-        await new Promise((r) => setTimeout(r, 700));
-        setPhase("editor");
-        callAI(val);
+        try {
+            const data = await AIService.invoke(settings.model, {
+                messages: updatedMsgs,
+                fileContent: fileContext || undefined,
+                systemPrompt: settings.systemPrompt,
+                temperature: settings.temperature,
+                apiKey: settings.model.startsWith("gemini") ? settings.geminiApiKey : settings.openAIApiKey
+            });
+
+            if (data.type === "message" || !data.questions || data.questions.length === 0) {
+                // Interactive conversation fallback
+                setMessages(prev => [...prev, { id: uid(), role: "ai", text: data.text || "Can you provide more details?" }]);
+            } else {
+                // Form Generated
+                if (data.title && !currentPrompt.includes(data.title)) {
+                    setCurrentPrompt(data.title);
+                } else if (!currentPrompt) {
+                    setCurrentPrompt(val);
+                }
+                const qList = data.questions;
+                const scrapedStr = qList.map((q: any) => `- ${q.label || q.title} (${q.type})`).join("\n");
+                const aiMessageResponseText = `${data.text ? data.text + "\n\n" : ""}I've drafted the form. Here are the questions I scraped:\n${scrapedStr}\n\nSwitching to Editor...`;
+
+                setMessages(prev => [...prev, { id: uid(), role: "ai", text: aiMessageResponseText }]);
+
+                // wait to show indicator
+                setTimeout(() => {
+                    handleAIResponseData(qList);
+                    setPhase("editor");
+                }, 3500);
+            }
+        } catch (e: any) {
+            console.error("AI Error:", e);
+            toast.error("AI failed. Creating sample questions...");
+            const samples = getSampleQuestions(val);
+            setMessages(prev => [...prev, { id: uid(), role: "ai", text: "I encountered an error connecting to the model API. I've formulated a sample template instead. Switching to Editor..." }]);
+            setTimeout(() => {
+                handleAIResponseData(samples);
+                setPhase("editor");
+            }, 3000);
+        } finally {
+            setIsGen(false);
+        }
     }
 
     async function handleRefine() {
@@ -210,6 +239,10 @@ export default function ComplexAI() {
                 textareaRef={textareaRef}
                 autoResize={autoResize}
                 toggleTheme={() => setIsDark(!isDark)}
+                fileContext={fileContext}
+                setFileContext={setFileContext}
+                fileName={fileName}
+                setFileName={setFileName}
             />
         );
     }

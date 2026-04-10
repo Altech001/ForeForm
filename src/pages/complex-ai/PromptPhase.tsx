@@ -1,7 +1,10 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, LayoutDashboard, Sun, Moon } from "lucide-react";
+import { Send, LayoutDashboard, Sun, Moon, Settings, Paperclip, X } from "lucide-react";
 import { Message, EXAMPLES } from "./types";
+import { AgentSettingsDialog } from "./AgentSettingsDialog";
+import { base44 } from "@/api/foreform";
+import { toast } from "sonner";
 
 interface PromptPhaseProps {
     isDark: boolean;
@@ -15,6 +18,10 @@ interface PromptPhaseProps {
     textareaRef: React.RefObject<HTMLTextAreaElement>;
     autoResize: (el: HTMLTextAreaElement) => void;
     toggleTheme: () => void;
+    fileContext: string;
+    setFileContext: (ctx: string) => void;
+    fileName: string;
+    setFileName: (name: string) => void;
 }
 
 export const PromptPhase: React.FC<PromptPhaseProps> = ({
@@ -29,7 +36,94 @@ export const PromptPhase: React.FC<PromptPhaseProps> = ({
     textareaRef,
     autoResize,
     toggleTheme,
+    fileContext,
+    setFileContext,
+    fileName,
+    setFileName,
 }) => {
+    const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFileName(file.name);
+
+        try {
+            if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+                toast.loading("Extracting DOCX content locally...");
+
+                // Dynamically load mammoth from CDN to bypass Vite module resolution errors
+                if (!(window as any).mammoth) {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement("script");
+                        script.src = "https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js";
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const arrayBuffer = await file.arrayBuffer();
+                const result = await (window as any).mammoth.extractRawText({ arrayBuffer });
+                if (result && result.value) {
+                    setFileContext(result.value);
+                } else {
+                    throw new Error("No text found in document");
+                }
+                toast.dismiss();
+            } else if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const dataUrl = evt.target?.result;
+                    if (typeof dataUrl === "string") setFileContext(`[IMAGE_BASE64]${dataUrl}`);
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
+                toast.loading("Extracting PDF content locally...");
+                try {
+                    if (!(window as any).pdfjsLib) {
+                        await new Promise((resolve, reject) => {
+                            const script = document.createElement("script");
+                            script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js";
+                            script.onload = resolve;
+                            script.onerror = reject;
+                            document.head.appendChild(script);
+                        });
+                        (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+                    }
+
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                    let text = "";
+                    for (let i = 1; i <= pdf.numPages; i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        text += content.items.map((item: any) => item.str).join(" ") + "\n";
+                    }
+                    if (text.trim()) {
+                        setFileContext(text);
+                    } else {
+                        throw new Error("No text found in PDF");
+                    }
+                } catch (err: any) {
+                    console.error("PDF Extraction Failed", err);
+                    setFileContext(`Failed to extract PDF locally: ${err?.message}`);
+                }
+                toast.dismiss();
+            } else {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    const text = evt.target?.result;
+                    if (typeof text === "string") setFileContext(text);
+                };
+                reader.readAsText(file);
+            }
+        } catch (err: any) {
+            console.error("Failed to parse file", err);
+            setFileContext(`Failed to parse file: ${err?.message}`);
+        }
+    };
     return (
         <div className={`min-h-screen flex flex-col items-center justify-center px-4 py-12 transition-colors duration-500 ${isDark ? "bg-[#0a0a0f]" : "bg-[#f8fafc]"}`}
             style={{
@@ -48,14 +142,29 @@ export const PromptPhase: React.FC<PromptPhaseProps> = ({
                     <span className="hidden sm:inline">Dashboard</span>
                 </button>
 
-                <button
-                    onClick={toggleTheme}
-                    className={`pointer-events-auto flex items-center justify-center w-10 h-10 rounded-full border transition-all ${isDark ? "bg-[#13131a] text-yellow-400 border-white/10 hover:text-yellow-300" : "bg-white text-slate-500 border-slate-200 hover:text-slate-900"
-                        } border shadow-sm active:scale-95`}
-                >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
+                <div className="flex items-center gap-2 pointer-events-auto">
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all ${isDark ? "bg-[#13131a] text-[#8888a0] border-white/10 hover:text-white" : "bg-white text-slate-500 border-slate-200 hover:text-slate-900"
+                            } border shadow-sm active:scale-95`}
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={toggleTheme}
+                        className={`flex items-center justify-center w-10 h-10 rounded-full border transition-all ${isDark ? "bg-[#13131a] text-yellow-400 border-white/10 hover:text-yellow-300" : "bg-white text-slate-500 border-slate-200 hover:text-slate-900"
+                            } border shadow-sm active:scale-95`}
+                    >
+                        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </button>
+                </div>
             </header>
+
+            <AgentSettingsDialog
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                isDark={isDark}
+            />
 
             {/* Headline */}
             <div className="flex flex-col items-center mb-8">
@@ -100,8 +209,35 @@ export const PromptPhase: React.FC<PromptPhaseProps> = ({
                     <div ref={messagesEndRef} />
                 </div>
 
+                {/* File Attachment context display */}
+                {fileName && (
+                    <div className={`px-4 py-2 border-t flex items-center justify-between text-xs font-medium ${isDark ? "border-white/[0.07] bg-[#1a1a24] text-violet-300" : "border-slate-100 bg-violet-50 text-violet-700"}`}>
+                        <div className="flex items-center gap-2">
+                            <Paperclip className="w-3 h-3" />
+                            <span className="truncate max-w-[200px]">Context: {fileName}</span>
+                        </div>
+                        <button onClick={() => { setFileName(""); setFileContext(""); }} className="hover:opacity-70 transition-opacity">
+                            <X className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
+
                 {/* Input row */}
                 <div className={`flex items-end gap-3 px-4 py-3 border-t ${isDark ? "border-white/[0.07]" : "border-slate-100"}`}>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".txt,.csv,.json,.md,.xml"
+                        onChange={handleFileChange}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex-shrink-0 w-8 h-8 rounded-full mb-1 flex items-center justify-center transition-all ${isDark ? "text-[#8888a0] hover:text-violet-400 hover:bg-violet-900/30" : "text-slate-400 hover:text-violet-600 hover:bg-violet-50"}`}
+                        title="Upload context file"
+                    >
+                        <Paperclip className="w-4 h-4" />
+                    </button>
                     <textarea
                         ref={textareaRef}
                         value={inputVal}
