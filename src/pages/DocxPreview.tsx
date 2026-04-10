@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/foreform";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ export default function DocxPreview() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("preview");
     const [mobilePreviewPanel, setMobilePreviewPanel] = useState<"studio" | "document">("studio");
+    const [isFullPreview, setIsFullPreview] = useState(false);
 
     // Editable state for the current response
     const [editableResponse, setEditableResponse] = useState<any>(null);
@@ -71,13 +72,13 @@ export default function DocxPreview() {
     const selectedForm = forms.find(f => f.id === selectedFormId);
     const selectedResponse = responses.find(r => r.id === selectedResponseId);
     const activeTemplate = getDocxTemplate(selectedTemplateId);
-    const selectedFormForDocx = selectedForm ? {
+    const selectedFormForDocx = useMemo(() => selectedForm ? {
         ...selectedForm,
         branding: {
             ...(selectedForm.branding || {}),
             docx_template: selectedTemplateId,
         },
-    } : null;
+    } : null, [selectedForm, selectedTemplateId]);
 
     // Filtered responses
     const filteredResponses = responses.filter(r =>
@@ -179,12 +180,13 @@ export default function DocxPreview() {
         setSelectedTemplateId(templateId);
         setActiveTab("preview");
         setMobilePreviewPanel("document");
+        setIsFullPreview(true);
     };
 
     const renderSidebar = () => (
         <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r w-80 max-w-[80vw]">
             <div className="p-4 border-b shrink-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Select Survey</Label>
+                <Label className="text-[10px] font-bold uppercase  text-muted-foreground mb-2 block">Select Survey</Label>
                 <select
                     className="w-full bg-transparent dark:bg-slate-800 border rounded px-3 py-2 text-sm outline-none focus:ring-primary"
                     value={selectedFormId || ""}
@@ -290,7 +292,7 @@ export default function DocxPreview() {
 
                 <div className="flex items-center gap-2 sm:gap-3">
                     <div className="hidden xl:flex items-center gap-2 rounded-full border bg-white px-2 py-1 shadow-sm">
-                        <span className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">DOCX style</span>
+                        <span className="px-2 text-[10px] font-bold uppercase  text-muted-foreground">DOCX style</span>
                         <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                             <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent text-xs shadow-none focus:ring-0">
                                 <SelectValue />
@@ -341,7 +343,7 @@ export default function DocxPreview() {
                             <div className={`${activeTab === "edit" ? "flex" : "hidden"} lg:flex w-full lg:w-80 xl:w-96 border-r bg-white dark:bg-slate-900 flex-col p-6 pb-28 lg:pb-6 overflow-y-auto shadow-inner custom-scrollbar shrink-0 min-h-0`}>
                                 <div className="flex items-center gap-2 mb-6">
                                     <Settings2 className="w-4 h-4 text-primary" />
-                                    <h2 className="text-sm font-bold uppercase tracking-tight">Edit Payload</h2>
+                                    <h2 className="text-sm font-bold uppercase ">Edit Payload</h2>
                                 </div>
 
                                 <div className="space-y-6">
@@ -473,8 +475,8 @@ export default function DocxPreview() {
                                     </div>
                                 </div>
 
-                                <div className="grid flex-1 min-h-0 gap-4 xl:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
-                                    <section className={`${mobilePreviewPanel === "studio" ? "flex" : "hidden"} xl:flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm`}>
+                                <div className="grid flex-1 min-h-0 gap-4">
+                                    <section className={`${mobilePreviewPanel === "studio" && !isFullPreview ? "flex" : "hidden"} ${isFullPreview ? 'hidden' : 'xl:flex'} min-h-0 flex-col rounded bg-white/95 p-4 shadow-sm`}>
                                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                             <div className="space-y-1">
                                                 <p className="text-[10px] font-bold text-muted-foreground">Template Preview Studio</p>
@@ -522,8 +524,8 @@ export default function DocxPreview() {
                                                             <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border" style={{ backgroundColor: template.accent }} />
                                                         </div>
                                                         <div className="relative h-52 overflow-hidden rounded-2xl" style={{ backgroundColor: template.surface }}>
-                                                            <PreviewCard />
-                                                            <div className={`absolute inset-0 z-10 flex items-center justify-center bg-slate-950/45 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}>
+                                                            <PreviewCard form={selectedForm || undefined} />
+                                                            <div className={`absolute inset-0 z-10 flex items-center justify-center bg-slate-950/45 transition-opacity opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`}>
                                                                 <Button
                                                                     type="button"
                                                                     size="sm"
@@ -544,29 +546,39 @@ export default function DocxPreview() {
                                         </div>
                                     </section>
 
-                                    <section className={`${mobilePreviewPanel === "document" ? "flex" : "hidden"} xl:flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm`}>
-                                        <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-white text-black rounded-2xl overflow-y-auto custom-scrollbar flex flex-col min-h-0">
-                                    <div className="flex-shrink-0 px-8 py-4 border-b flex items-center justify-between bg-transparent select-none">
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex gap-1">
-                                                <div className="w-2 h-2 rounded-full bg-green-300" />
-                                                <div className="w-2 h-2 rounded-full bg-yellow-300" />
-                                                <div className="w-2 h-2 rounded-full bg-rose-300" />
+                                    <section className={`${mobilePreviewPanel === "document" || isFullPreview ? "flex" : "hidden"} ${isFullPreview ? 'xl:flex' : 'xl:hidden'} min-h-0 flex-col bg-white/80 p-3 shadow-sm`}>
+                                        <div className={`${isFullPreview ? 'max-w-5xl' : 'max-w-4xl'} mx-auto w-full h-full  text-black overflow-y-auto custom-scrollbar flex flex-col min-h-0 transition-all`}>
+                                            <div className="flex-shrink-0 px-8 py-4 border-b flex items-center justify-between bg-transparent select-none">
+                                                <div className="flex items-center gap-2">
+                                                    {isFullPreview && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsFullPreview(false)}
+                                                            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition mr-2"
+                                                        >
+                                                            <ArrowLeft className="w-3.5 h-3.5" />
+                                                            Studio
+                                                        </button>
+                                                    )}
+                                                    <div className="flex gap-1">
+                                                        <div className="w-2 h-2 rounded-full bg-green-300" />
+                                                        <div className="w-2 h-2 rounded-full bg-yellow-300" />
+                                                        <div className="w-2 h-2 rounded-full bg-rose-300" />
+                                                    </div>
+                                                    <span className="text-[10px] font-mono text-slate-400">Word Preview</span>
+                                                </div>
+                                                {isRefreshingPreview ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                                                        <span className="text-[10px] font-bold text-primary animate-pulse italic">syncing changes...</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 text-green-600">
+                                                        <CheckCircle2 className="w-3 h-3" />
+                                                        <span className="text-[10px] font-bold">Ready to download</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <span className="text-[10px] font-mono text-slate-400">Word Preview</span>
-                                        </div>
-                                        {isRefreshingPreview ? (
-                                            <div className="flex items-center gap-2">
-                                                <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                                                <span className="text-[10px] font-bold text-primary animate-pulse italic">syncing changes...</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-1.5 text-green-600">
-                                                <CheckCircle2 className="w-3 h-3" />
-                                                <span className="text-[10px] font-bold">Ready to download</span>
-                                            </div>
-                                        )}
-                                    </div>
 
                                             <div className="p-4 sm:p-8 xl:p-10 docx-preview-wrapper flex-1">
                                                 <div ref={previewContainerRef} className="w-full" />
@@ -594,11 +606,13 @@ export default function DocxPreview() {
                                         padding: 8px 10px !important;
                                     }
                                     .docx-preview-wrapper {
-                                        background:
-                                          radial-gradient(circle at top left, rgba(148,163,184,0.08), transparent 24%),
-                                          linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-                                        border-radius: 24px;
+                                        border-radius: 2px;
                                         min-height: 100%;
+                                        background-color: white;
+                                        overflow-y: auto;
+                                        -webkit-overflow-scrolling: touch;
+                                        scrollbar-width: thin;
+                                        scrollbar-color: rgba(0,0,0,0.1) transparent;
                                     }
                                     .docx-preview-wrapper table {
                                         width: 100% !important;
@@ -645,12 +659,12 @@ export default function DocxPreview() {
                             <div>
                                 <h3 className="text-xl font-bold">No Response Selected</h3>
                                 <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                            Pick a respondent from the sidebar to view and edit their Word export preview.
-                        </p>
-                    </div>
-                </div>
-            )}
-        </main>
+                                    Pick a respondent from the sidebar to view and edit their Word export preview.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </main>
             </div>
         </div>
     );

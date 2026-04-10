@@ -101,19 +101,20 @@ export async function generateDocxBlob(form: any, response: any) {
   const metadataXml = buildMetadataXml({ respondent, email, dateStr, response, theme });
   const ethicsXml = branding.ethics_statement ? sectionNote("Ethics & Disclosure", branding.ethics_statement, theme) : "";
   const researchPromptXml = template.id === "alber"
-    ? buildAlberResearchIntro(branding, theme)
-    : buildCompactIntro(branding, template, theme);
+    ? buildAlberResearchIntro(branding, form, theme)
+    : buildCompactIntro(branding, form, template, theme);
 
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
   <w:body>
     ${coverXml}
     ${researchPromptXml}
     ${metadataXml}
     ${gpsXml}
-    ${sectionHeading("Response Summary", theme, 28)}
+    ${sectionHeading("QUESTIONS", theme, 28)}
     ${answersXml}
     ${signatureXml}
     ${ethicsXml}
@@ -124,10 +125,22 @@ export async function generateDocxBlob(form: any, response: any) {
   </w:body>
 </w:document>`;
 
+  let logoBuffer: Uint8Array | null = null;
+  try {
+    const logoUrl = branding.logo_url || "/letter-m.png";
+    const res = await fetch(logoUrl);
+    if (res.ok) {
+      logoBuffer = new Uint8Array(await res.arrayBuffer());
+    }
+  } catch (e) {
+    console.warn("Failed to fetch logo for docx", e);
+  }
+
   const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
+  ${logoBuffer ? '<Default Extension="png" ContentType="image/png"/>' : ''}
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 </Types>`;
 
@@ -137,87 +150,137 @@ export async function generateDocxBlob(form: any, response: any) {
 </Relationships>`;
 
   const wordRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${logoBuffer ? '<Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/>' : ''}
+</Relationships>`;
 
-  return createDocxZip({
+  const zippedFiles: Record<string, string | Uint8Array> = {
     "[Content_Types].xml": contentTypesXml,
     "_rels/.rels": relsXml,
     "word/_rels/document.xml.rels": wordRelsXml,
     "word/document.xml": docXml,
-  });
+  };
+  
+  if (logoBuffer) {
+    zippedFiles["word/media/logo.png"] = logoBuffer;
+  }
+
+  return createDocxZip(zippedFiles);
 }
 
 function buildCoverXml({ title, branding, template, theme }: any) {
-  const org = branding.organization || "ForeForm Research Suite";
-  const appendix = branding.appendix_label || template.previewTitle;
-  const researchTitle = branding.research_title || template.previewSubtitle;
+  const org = branding.organization || "";
+  const appendix = branding.appendix_label || "";
+  const researchTitle = branding.research_title || "";
   const formattedTitle = theme.titleCase === "upper" ? title.toUpperCase() : title;
+
+  // We check if docXml generation included the logo in files
+  const logoDrawing = `
+    <w:drawing>
+      <wp:inline distT="0" distB="0" distL="0" distR="0">
+        <wp:extent cx="350000" cy="350000"/>
+        <wp:effectExtent l="0" t="0" r="0" b="0"/>
+        <wp:docPr id="1" name="Logo"/>
+        <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+          <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+              <pic:nvPicPr><pic:cNvPr id="0" name="Logo.png"/><pic:cNvPicPr/></pic:nvPicPr>
+              <pic:blipFill><a:blip r:embed="rIdLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+              <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="350000" cy="350000"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+            </pic:pic>
+          </a:graphicData>
+        </a:graphic>
+      </wp:inline>
+    </w:drawing>`;
 
   if (theme.coverMode === "hero") {
     return `
-    <w:p>
+    ${org ? `<w:p>
       <w:pPr><w:jc w:val="center"/><w:spacing w:before="920" w:after="140"/></w:pPr>
-      <w:r><w:rPr><w:b/><w:color w:val="${theme.muted}"/><w:sz w:val="28"/></w:rPr><w:t>${escapeXml(org)}</w:t></w:r>
+      <w:r>${logoDrawing}</w:r>
     </w:p>
     <w:p>
+      <w:pPr><w:jc w:val="center"/><w:spacing w:after="140"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:color w:val="${theme.muted}"/><w:sz w:val="28"/></w:rPr><w:t>${escapeXml(org)}</w:t></w:r>
+    </w:p>` : `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="920" w:after="140"/></w:pPr><w:r>${logoDrawing}</w:r></w:p>`}
+    ${appendix ? `<w:p>
       <w:pPr><w:jc w:val="center"/><w:spacing w:after="100"/></w:pPr>
       <w:r><w:rPr><w:b/><w:color w:val="${theme.accent}"/><w:sz w:val="24"/></w:rPr><w:t>${escapeXml(appendix)}</w:t></w:r>
-    </w:p>
+    </w:p>` : ""}
     <w:p>
       <w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="200"/></w:pPr>
       <w:r><w:rPr><w:b/><w:sz w:val="38"/></w:rPr><w:t>${escapeXml(formattedTitle)}</w:t></w:r>
     </w:p>
-    <w:p>
+    ${researchTitle ? `<w:p>
       <w:pPr><w:jc w:val="center"/><w:spacing w:after="260"/></w:pPr>
       <w:r><w:rPr><w:i/><w:color w:val="${theme.muted}"/><w:sz w:val="24"/></w:rPr><w:t>${escapeXml(researchTitle)}</w:t></w:r>
-    </w:p>
-    <w:p>
-      <w:pPr><w:jc w:val="center"/><w:spacing w:after="420"/></w:pPr>
-      <w:r><w:rPr><w:color w:val="${theme.accent}"/><w:sz w:val="22"/></w:rPr><w:t>${escapeXml(template.description)}</w:t></w:r>
-    </w:p>
+    </w:p>` : ""}
     <w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="10" w:space="1" w:color="${theme.line}"/></w:pBdr></w:pPr></w:p>`;
   }
 
   return `
   <w:p>
     <w:pPr><w:spacing w:after="60"/></w:pPr>
-    <w:r><w:rPr><w:b/><w:color w:val="${theme.accent}"/><w:sz w:val="24"/></w:rPr><w:t>${escapeXml(org)}</w:t></w:r>
+    <w:r>${logoDrawing}</w:r>
   </w:p>
-  <w:p>
+  ${org ? `<w:p>
+    <w:pPr><w:spacing w:after="60"/></w:pPr>
+    <w:r><w:rPr><w:b/><w:color w:val="${theme.accent}"/><w:sz w:val="24"/></w:rPr><w:t>${escapeXml(org)}</w:t></w:r>
+  </w:p>` : ""}
+  ${appendix ? `<w:p>
     <w:pPr><w:spacing w:after="120"/></w:pPr>
     <w:r><w:rPr><w:i/><w:color w:val="${theme.muted}"/><w:sz w:val="20"/></w:rPr><w:t>${escapeXml(appendix)}</w:t></w:r>
-  </w:p>
+  </w:p>` : ""}
   <w:p>
     <w:pPr><w:spacing w:after="220"/></w:pPr>
     <w:r><w:rPr><w:b/><w:sz w:val="34"/></w:rPr><w:t>${escapeXml(formattedTitle)}</w:t></w:r>
   </w:p>`;
 }
 
-function buildAlberResearchIntro(branding: any, theme: any) {
-  const introTitle = branding.research_title || "INNOVATING PUBLIC SERVICE DELIVERY THROUGH E-GOVERNMENT PLATFORMS";
+function buildAlberResearchIntro(branding: any, form: any, theme: any) {
+  const introTitle = branding.research_title || "";
   const consent = branding.consent_text || "Participation is voluntary. Responses are used for academic purposes and handled confidentially.";
+  const description = form?.description || "";
 
-  return `
-  ${sectionHeading("Questionnaire for E-Government Platform Users", theme, 24)}
-  ${simpleParagraph("Dear Respondent,", theme, { bold: true, before: 80, after: 80 })}
-  ${simpleParagraph(introTitle, theme, { italic: true, after: 120 })}
-  ${simpleParagraph(consent, theme, { after: 160 })}
-  ${simpleParagraph("This export uses the Alber Research template: a formal multi-section layout intended for university survey instruments and archival response review.", theme, { color: theme.muted, after: 180 })}`;
+  let xml = ``;
+  if (introTitle) {
+    xml += sectionHeading(introTitle, theme, 24);
+  }
+  if (description) {
+    xml += simpleParagraph(description, theme, { after: 120, size: 21, color: theme.muted });
+  }
+  xml += simpleParagraph("Dear Respondent,", theme, { bold: true, before: 80, after: 80 });
+  xml += simpleParagraph(consent, theme, { after: 160 });
+  return xml;
 }
 
-function buildCompactIntro(branding: any, template: any, theme: any) {
-  const subtitle = branding.research_title || template.previewSubtitle;
-  return `
-  <w:p>
-    <w:pPr><w:spacing w:before="160" w:after="160"/></w:pPr>
-    <w:r><w:rPr><w:i/><w:color w:val="${theme.muted}"/><w:sz w:val="21"/></w:rPr><w:t>${escapeXml(subtitle)}</w:t></w:r>
-  </w:p>`;
+function buildCompactIntro(branding: any, form: any, _template: any, theme: any) {
+  const subtitle = branding.research_title || "";
+  const description = form?.description || "";
+  if (!subtitle && !description) return ``;
+  
+  let xml = ``;
+  if (subtitle) {
+    xml += `
+    <w:p>
+      <w:pPr><w:spacing w:before="160" w:after="${description ? 80 : 160}"/></w:pPr>
+      <w:r><w:rPr><w:i/><w:color w:val="${theme.muted}"/><w:sz w:val="21"/></w:rPr><w:t>${escapeXml(subtitle)}</w:t></w:r>
+    </w:p>`;
+  }
+  if (description) {
+    xml += `
+    <w:p>
+      <w:pPr><w:spacing w:before="${subtitle ? 0 : 160}" w:after="160"/></w:pPr>
+      <w:r><w:rPr><w:color w:val="${theme.muted}"/><w:sz w:val="20"/></w:rPr><w:t>${escapeXml(description)}</w:t></w:r>
+    </w:p>`;
+  }
+  return xml;
 }
 
 function buildMetadataXml({ respondent, email, dateStr, response, theme }: any) {
   if (theme.metadataStyle === "cards") {
     return `
-    ${metaCard("Respondent", respondent, theme)}
+    ${metaCard("Full Name", respondent, theme)}
     ${metaCard("Email", email, theme)}
     ${metaCard("Submitted", dateStr, theme)}
     ${response?.respondent_phone ? metaCard("Phone", response.respondent_phone, theme) : ""}`;
@@ -237,7 +300,7 @@ function buildMetadataXml({ respondent, email, dateStr, response, theme }: any) 
       </w:tblBorders>
       <w:shd w:fill="FFFFFF"/>
     </w:tblPr>
-    ${metaRow("Respondent", respondent, theme)}
+    ${metaRow("Full Name", respondent, theme)}
     ${metaRow("Email", email, theme)}
     ${metaRow("Submitted", dateStr, theme)}
     ${response?.respondent_phone ? metaRow("Phone", response.respondent_phone, theme) : ""}
@@ -405,7 +468,7 @@ function escapeXml(str: any) {
     .replace(/'/g, "&apos;");
 }
 
-async function createDocxZip(files: Record<string, string>) {
+async function createDocxZip(files: Record<string, string | Uint8Array>) {
     const encoder = new TextEncoder();
     const parts = [] as BlobPart[];
     const centralDirectory: Uint8Array[] = [];
@@ -413,7 +476,7 @@ async function createDocxZip(files: Record<string, string>) {
 
     for (const [name, content] of Object.entries(files)) {
         const nameBytes = encoder.encode(name);
-        const contentBytes = encoder.encode(content as string);
+        const contentBytes = typeof content === "string" ? encoder.encode(content) : content;
         const localHeader = new Uint8Array(30 + nameBytes.length);
         const view = new DataView(localHeader.buffer);
         view.setUint32(0, 0x04034b50, true);
@@ -451,13 +514,13 @@ async function createDocxZip(files: Record<string, string>) {
         cdEntry.set(nameBytes, 46);
 
         centralDirectory.push(cdEntry);
-        parts.push(localHeader, contentBytes);
+        parts.push(localHeader as BlobPart, contentBytes as BlobPart);
         offset += localHeader.length + contentBytes.length;
     }
 
     const cdOffset = offset;
     let cdSize = 0;
-    centralDirectory.forEach(cd => { cdSize += cd.length; parts.push(cd); });
+    centralDirectory.forEach(cd => { cdSize += cd.length; parts.push(cd as BlobPart); });
 
     const eocd = new Uint8Array(22);
     const eocdView = new DataView(eocd.buffer);
@@ -469,7 +532,7 @@ async function createDocxZip(files: Record<string, string>) {
     eocdView.setUint32(12, cdSize, true);
     eocdView.setUint32(16, cdOffset, true);
     eocdView.setUint16(20, 0, true);
-    parts.push(eocd);
+    parts.push(eocd as BlobPart);
 
     return new Blob(parts, { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
 }
