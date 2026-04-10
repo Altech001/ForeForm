@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import OpenAI from "openai";
 import { base44 } from "@/api/foreform";
 
 // Import local components and types
