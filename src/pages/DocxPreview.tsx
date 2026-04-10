@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/foreform";
@@ -46,6 +47,7 @@ export default function DocxPreview() {
     const [isExportingAll, setIsExportingAll] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeTab, setActiveTab] = useState("preview");
+    const [mobilePreviewPanel, setMobilePreviewPanel] = useState<"studio" | "document">("studio");
 
     // Editable state for the current response
     const [editableResponse, setEditableResponse] = useState<any>(null);
@@ -98,6 +100,10 @@ export default function DocxPreview() {
             setSelectedTemplateId(selectedForm.branding.docx_template);
         }
     }, [selectedForm]);
+
+    useEffect(() => {
+        setMobilePreviewPanel("studio");
+    }, [selectedResponseId]);
 
     // Update preview when editable data changes
     useEffect(() => {
@@ -167,6 +173,12 @@ export default function DocxPreview() {
         } finally {
             setIsExportingAll(false);
         }
+    };
+
+    const handleTemplatePreview = (templateId: string) => {
+        setSelectedTemplateId(templateId);
+        setActiveTab("preview");
+        setMobilePreviewPanel("document");
     };
 
     const renderSidebar = () => (
@@ -321,12 +333,12 @@ export default function DocxPreview() {
                 {/* Main Content Area */}
                 <main className="flex-1 flex flex-col overflow-hidden relative">
                     {selectedResponse && editableResponse ? (
-                        <div className="flex flex-1 flex-col lg:flex-row overflow-hidden w-full h-full">
+                        <div className="flex flex-1 flex-col lg:flex-row overflow-hidden w-full h-full min-h-0">
 
 
 
                             {/* Editor Panel */}
-                            <div className={`${activeTab === "edit" ? "flex" : "hidden"} lg:flex w-full lg:w-80 xl:w-96 border-r bg-white dark:bg-slate-900 flex-col p-6 pb-28 lg:pb-6 overflow-y-auto shadow-inner custom-scrollbar shrink-0`}>
+                            <div className={`${activeTab === "edit" ? "flex" : "hidden"} lg:flex w-full lg:w-80 xl:w-96 border-r bg-white dark:bg-slate-900 flex-col p-6 pb-28 lg:pb-6 overflow-y-auto shadow-inner custom-scrollbar shrink-0 min-h-0`}>
                                 <div className="flex items-center gap-2 mb-6">
                                     <Settings2 className="w-4 h-4 text-primary" />
                                     <h2 className="text-sm font-bold uppercase tracking-tight">Edit Payload</h2>
@@ -441,58 +453,99 @@ export default function DocxPreview() {
                             </div>
 
                             {/* Preview Panel */}
-                            <div className={`${activeTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 flex-col dark:bg-slate-900 overflow-hidden p-4 sm:p-8 pb-28 lg:pb-8 relative bg-slate-50`}>
-                                <div className="mb-4 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm">
-                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="space-y-1">
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Template Preview Studio</p>
-                                            <h2 className="text-sm font-semibold" style={{ color: activeTemplate.text }}>{activeTemplate.previewTitle}</h2>
-                                            <p className="max-w-2xl text-xs text-muted-foreground">{activeTemplate.previewSubtitle}</p>
-                                        </div>
-                                        <div className="w-full lg:w-[220px]">
-                                            <Label className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Switch DOCX template</Label>
-                                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                                                <SelectTrigger className="h-9 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {docxTemplates.map((template) => (
-                                                        <SelectItem key={template.id} value={template.id} className="text-xs">
-                                                            {template.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                        {docxTemplates.map((template) => {
-                                            const PreviewCard = template.Preview;
-                                            const active = template.id === selectedTemplateId;
-                                            return (
-                                                <button
-                                                    key={template.id}
-                                                    type="button"
-                                                    onClick={() => setSelectedTemplateId(template.id)}
-                                                    className={`rounded-3xl border p-3 text-left transition-all ${active ? "border-slate-900 shadow-lg ring-2 ring-offset-2" : "border-slate-200 hover:border-slate-300 hover:shadow-md"}`}
-                                                    style={active ? { borderColor: template.accent, boxShadow: `0 18px 40px -28px ${template.accent}` } : undefined}
-                                                >
-                                                    <div className="mb-3 flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <p className="text-sm font-semibold" style={{ color: template.text }}>{template.name}</p>
-                                                            <p className="mt-1 text-[11px] text-muted-foreground">{template.description}</p>
-                                                        </div>
-                                                        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: template.accent }} />
-                                                    </div>
-                                                    <div className="h-52 overflow-hidden rounded-2xl" style={{ backgroundColor: template.surface }}>
-                                                        <PreviewCard />
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
+                            <div className={`${activeTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 flex-col dark:bg-slate-900 overflow-hidden p-4 sm:p-6 pb-28 lg:pb-6 relative bg-slate-50 min-h-0`}>
+                                <div className="lg:hidden mb-4 rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+                                    <div className="grid grid-cols-2 gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => setMobilePreviewPanel("studio")}
+                                            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${mobilePreviewPanel === "studio" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                                        >
+                                            Template Studio
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMobilePreviewPanel("document")}
+                                            className={`rounded-full px-3 py-2 text-xs font-semibold transition ${mobilePreviewPanel === "document" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                                        >
+                                            Word Preview
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-white text-black rounded overflow-y-auto custom-scrollbar flex flex-col">
+
+                                <div className="grid flex-1 min-h-0 gap-4 xl:grid-cols-[minmax(360px,430px)_minmax(0,1fr)]">
+                                    <section className={`${mobilePreviewPanel === "studio" ? "flex" : "hidden"} xl:flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm`}>
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="space-y-1">
+                                                <p className="text-[10px] font-bold text-muted-foreground">Template Preview Studio</p>
+                                                <h2 className="text-sm font-semibold" style={{ color: activeTemplate.text }}>{activeTemplate.previewTitle}</h2>
+                                                <p className="text-xs text-muted-foreground">{activeTemplate.previewSubtitle}</p>
+                                            </div>
+                                            <div className="w-full lg:w-[220px] xl:w-full 2xl:w-[220px]">
+                                                <Label className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Switch DOCX template</Label>
+                                                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                                    <SelectTrigger className="h-9 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {docxTemplates.map((template) => (
+                                                            <SelectItem key={template.id} value={template.id} className="text-xs">
+                                                                {template.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-4 grid flex-1 auto-rows-max gap-3 overflow-y-auto pr-1 custom-scrollbar sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                                            {docxTemplates.map((template) => {
+                                                const PreviewCard = template.Preview;
+                                                const active = template.id === selectedTemplateId;
+                                                return (
+                                                    <div
+                                                        key={template.id}
+                                                        className={`group relative rounded-2xl border p-3 text-left transition-all ${active ? "border-slate-900 shadow-lg ring-2 ring-offset-2" : "border-slate-200 hover:border-slate-300 hover:shadow-md"}`}
+                                                        style={active ? { borderColor: template.accent, boxShadow: `0 18px 40px -28px ${template.accent}` } : undefined}
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedTemplateId(template.id)}
+                                                            className="absolute inset-0 rounded-2xl"
+                                                            aria-label={`Select ${template.name} template`}
+                                                        />
+                                                        <div className="mb-3 flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <p className="text-sm font-semibold" style={{ color: template.text }}>{template.name}</p>
+                                                                <p className="mt-1 text-[11px] text-muted-foreground">{template.description}</p>
+                                                            </div>
+                                                            <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border" style={{ backgroundColor: template.accent }} />
+                                                        </div>
+                                                        <div className="relative h-52 overflow-hidden rounded-2xl" style={{ backgroundColor: template.surface }}>
+                                                            <PreviewCard />
+                                                            <div className={`absolute inset-0 z-10 flex items-center justify-center bg-slate-950/45 transition-opacity ${active ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"}`}>
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleTemplatePreview(template.id);
+                                                                    }}
+                                                                    className="gap-2 rounded-full bg-white text-slate-900 hover:bg-slate-100"
+                                                                >
+                                                                    <Eye className="w-4 h-4" />
+                                                                    Preview
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </section>
+
+                                    <section className={`${mobilePreviewPanel === "document" ? "flex" : "hidden"} xl:flex min-h-0 flex-col rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm`}>
+                                        <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-white text-black rounded-2xl overflow-y-auto custom-scrollbar flex flex-col min-h-0">
                                     <div className="flex-shrink-0 px-8 py-4 border-b flex items-center justify-between bg-transparent select-none">
                                         <div className="flex items-center gap-2">
                                             <div className="flex gap-1">
@@ -515,9 +568,11 @@ export default function DocxPreview() {
                                         )}
                                     </div>
 
-                                    <div className="p-12 docx-preview-wrapper flex-1">
-                                        <div ref={previewContainerRef} className="w-full" />
-                                    </div>
+                                            <div className="p-4 sm:p-8 xl:p-10 docx-preview-wrapper flex-1">
+                                                <div ref={previewContainerRef} className="w-full" />
+                                            </div>
+                                        </div>
+                                    </section>
                                 </div>
 
                                 {/* Overlay styles for docx-preview */}
