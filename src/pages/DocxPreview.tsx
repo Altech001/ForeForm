@@ -34,6 +34,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { docxTemplates, getDocxTemplate } from "@/templates";
 
 export default function DocxPreview() {
     const navigate = useNavigate();
@@ -50,6 +51,7 @@ export default function DocxPreview() {
     const [editableResponse, setEditableResponse] = useState<any>(null);
     const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
     const [isRefreshingPreview, setIsRefreshingPreview] = useState(false);
+    const [selectedTemplateId, setSelectedTemplateId] = useState("alber");
 
     // Fetch forms
     const { data: forms = [], isLoading: isLoadingForms } = useQuery({
@@ -66,6 +68,14 @@ export default function DocxPreview() {
 
     const selectedForm = forms.find(f => f.id === selectedFormId);
     const selectedResponse = responses.find(r => r.id === selectedResponseId);
+    const activeTemplate = getDocxTemplate(selectedTemplateId);
+    const selectedFormForDocx = selectedForm ? {
+        ...selectedForm,
+        branding: {
+            ...(selectedForm.branding || {}),
+            docx_template: selectedTemplateId,
+        },
+    } : null;
 
     // Filtered responses
     const filteredResponses = responses.filter(r =>
@@ -83,13 +93,19 @@ export default function DocxPreview() {
         }
     }, [selectedResponse]);
 
+    useEffect(() => {
+        if (selectedForm?.branding?.docx_template) {
+            setSelectedTemplateId(selectedForm.branding.docx_template);
+        }
+    }, [selectedForm]);
+
     // Update preview when editable data changes
     useEffect(() => {
         const updatePreview = async () => {
-            if (editableResponse && selectedForm) {
+            if (editableResponse && selectedFormForDocx) {
                 setIsRefreshingPreview(true);
                 try {
-                    const blob = await generateDocxBlob(selectedForm, editableResponse);
+                    const blob = await generateDocxBlob(selectedFormForDocx, editableResponse);
                     setPreviewBlob(blob);
                 } catch (error) {
                     console.error("Failed to generate preview:", error);
@@ -101,7 +117,7 @@ export default function DocxPreview() {
 
         const timer = setTimeout(updatePreview, 500); // Debounce
         return () => clearTimeout(timer);
-    }, [editableResponse, selectedForm]);
+    }, [editableResponse, selectedFormForDocx]);
 
     // Render the docx preview
     useEffect(() => {
@@ -137,7 +153,7 @@ export default function DocxPreview() {
             toast.info(`Preparing ${responses.length} files...`);
 
             for (const resp of responses) {
-                const blob = await generateDocxBlob(selectedForm, resp);
+                const blob = await generateDocxBlob(selectedFormForDocx, resp);
                 const fileName = `${(resp.respondent_name || "anonymous").replace(/\s+/g, "_")}_${resp.id.slice(0, 5)}.docx`;
                 folder?.file(fileName, blob);
             }
@@ -261,6 +277,21 @@ export default function DocxPreview() {
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="hidden xl:flex items-center gap-2 rounded-full border bg-white px-2 py-1 shadow-sm">
+                        <span className="px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">DOCX style</span>
+                        <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                            <SelectTrigger className="h-8 w-[180px] border-0 bg-transparent text-xs shadow-none focus:ring-0">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {docxTemplates.map((template) => (
+                                    <SelectItem key={template.id} value={template.id} className="text-xs">
+                                        {template.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     {selectedFormId && (
                         <Button
                             variant="outline"
@@ -274,7 +305,7 @@ export default function DocxPreview() {
                         </Button>
                     )}
                     {selectedResponse && (
-                        <Button size="sm" onClick={() => downloadDocx(selectedForm, editableResponse)} className="bg-primary gap-1 sm:gap-2">
+                        <Button size="sm" onClick={() => downloadDocx(selectedFormForDocx, editableResponse)} className="bg-primary gap-1 sm:gap-2">
                             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Download Current</span>
                         </Button>
                     )}
@@ -411,6 +442,56 @@ export default function DocxPreview() {
 
                             {/* Preview Panel */}
                             <div className={`${activeTab === "preview" ? "flex" : "hidden"} lg:flex flex-1 flex-col dark:bg-slate-900 overflow-hidden p-4 sm:p-8 pb-28 lg:pb-8 relative bg-slate-50`}>
+                                <div className="mb-4 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-sm">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Template Preview Studio</p>
+                                            <h2 className="text-sm font-semibold" style={{ color: activeTemplate.text }}>{activeTemplate.previewTitle}</h2>
+                                            <p className="max-w-2xl text-xs text-muted-foreground">{activeTemplate.previewSubtitle}</p>
+                                        </div>
+                                        <div className="w-full lg:w-[220px]">
+                                            <Label className="mb-1.5 block text-[11px] font-semibold text-muted-foreground">Switch DOCX template</Label>
+                                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                                <SelectTrigger className="h-9 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {docxTemplates.map((template) => (
+                                                        <SelectItem key={template.id} value={template.id} className="text-xs">
+                                                            {template.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {docxTemplates.map((template) => {
+                                            const PreviewCard = template.Preview;
+                                            const active = template.id === selectedTemplateId;
+                                            return (
+                                                <button
+                                                    key={template.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedTemplateId(template.id)}
+                                                    className={`rounded-3xl border p-3 text-left transition-all ${active ? "border-slate-900 shadow-lg ring-2 ring-offset-2" : "border-slate-200 hover:border-slate-300 hover:shadow-md"}`}
+                                                    style={active ? { borderColor: template.accent, boxShadow: `0 18px 40px -28px ${template.accent}` } : undefined}
+                                                >
+                                                    <div className="mb-3 flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-semibold" style={{ color: template.text }}>{template.name}</p>
+                                                            <p className="mt-1 text-[11px] text-muted-foreground">{template.description}</p>
+                                                        </div>
+                                                        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: template.accent }} />
+                                                    </div>
+                                                    <div className="h-52 overflow-hidden rounded-2xl" style={{ backgroundColor: template.surface }}>
+                                                        <PreviewCard />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                                 <div className="max-w-4xl mx-auto w-full h-full bg-white dark:bg-white text-black rounded overflow-y-auto custom-scrollbar flex flex-col">
                                     <div className="flex-shrink-0 px-8 py-4 border-b flex items-center justify-between bg-transparent select-none">
                                         <div className="flex items-center gap-2">
@@ -449,6 +530,20 @@ export default function DocxPreview() {
                                         border: none !important;
                                         background: white !important;
                                         color: black !important;
+                                    }
+                                    .docx-preview-output p {
+                                        line-height: 1.45 !important;
+                                    }
+                                    .docx-preview-output table td {
+                                        vertical-align: top !important;
+                                        padding: 8px 10px !important;
+                                    }
+                                    .docx-preview-wrapper {
+                                        background:
+                                          radial-gradient(circle at top left, rgba(148,163,184,0.08), transparent 24%),
+                                          linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+                                        border-radius: 24px;
+                                        min-height: 100%;
                                     }
                                     .docx-preview-wrapper table {
                                         width: 100% !important;
@@ -495,12 +590,12 @@ export default function DocxPreview() {
                             <div>
                                 <h3 className="text-xl font-bold">No Response Selected</h3>
                                 <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                                    Pick a respondent from the sidebar to view and edit their Word export preview.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                </main>
+                            Pick a respondent from the sidebar to view and edit their Word export preview.
+                        </p>
+                    </div>
+                </div>
+            )}
+        </main>
             </div>
         </div>
     );
