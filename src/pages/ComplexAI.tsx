@@ -1,20 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import OpenAI from "openai";
 import { base44 } from "@/api/foreform";
 
 // Import local components and types
 import { Phase, Question, Message, EXAMPLES } from "./complex-ai/types";
 import { PromptPhase } from "./complex-ai/PromptPhase";
 import { EditorPhase } from "./complex-ai/EditorPhase";
-
-/* ─── AI Client ────────────────────────────────────────────── */
-const client = new OpenAI({
-    apiKey: import.meta.env.VITE_GROQ_API_KEY || "",
-    dangerouslyAllowBrowser: true,
-    baseURL: "https://api.groq.com/openai/v1",
-});
 
 /* ─── Helpers ────────────────────────────────────────────── */
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -70,26 +62,13 @@ export default function ComplexAI() {
         setIsGen(true);
         setQuestions([]);
         try {
-            const response = await client.chat.completions.create({
-                model: "openai/gpt-oss-120b",
-                messages: [
-                    {
-                        role: "system",
-                        content: `You are an expert form creator. Output ONLY valid JSON with a 'questions' array.
-Each question: { id, type, label, required, options }.
-Types: short_text | long_text | multiple_choice | checkbox | dropdown | date | email | number.
-For multiple_choice/checkbox/dropdown include 3-4 options. Generate 6-10 questions.`,
-                    },
-                    {
-                        role: "user",
-                        content: `Form for: "${prompt}". ${refine ? "Additional instruction: " + refine : ""}`,
-                    },
-                ],
-                response_format: { type: "json_object" },
-            });
+            const fullPrompt = [
+                `Form for: "${prompt}".`,
+                refine ? `Additional instruction: ${refine}` : "",
+            ].filter(Boolean).join(" ");
 
-            const text = response.choices[0]?.message?.content || "";
-            const parsed = JSON.parse(text);
+            const raw = await base44.integrations.Core.InvokeLLM({ prompt: fullPrompt });
+            const parsed = JSON.parse(raw);
 
             if (Array.isArray(parsed.questions)) {
                 let acc: Question[] = [];
