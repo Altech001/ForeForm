@@ -10,11 +10,14 @@ import { PromptPhase } from "./complex-ai/PromptPhase";
 import { EditorPhase } from "./complex-ai/EditorPhase";
 
 /* ─── AI Client ────────────────────────────────────────────── */
-const client = new OpenAI({
-    apiKey: import.meta.env.VITE_GROQ_API_KEY || "",
-    dangerouslyAllowBrowser: true,
-    baseURL: "https://api.groq.com/openai/v1",
-});
+const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+const client = apiKey
+    ? new OpenAI({
+          apiKey,
+          dangerouslyAllowBrowser: true,
+          baseURL: "https://api.groq.com/openai/v1",
+      })
+    : null;
 
 /* ─── Helpers ────────────────────────────────────────────── */
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -69,6 +72,16 @@ export default function ComplexAI() {
     async function callAI(prompt: string, refine = "") {
         setIsGen(true);
         setQuestions([]);
+        
+        if (!client) {
+            toast.error("AI features not configured. Please set VITE_GROQ_API_KEY environment variable.");
+            setIsGen(false);
+            setPhase("editor");
+            setQuestions(getSampleQuestions(prompt));
+            setCurrentPrompt(prompt);
+            return;
+        }
+        
         try {
             const response = await client.chat.completions.create({
                 model: "openai/gpt-oss-120b",
