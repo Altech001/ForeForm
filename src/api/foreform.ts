@@ -121,7 +121,9 @@ export const base44 = {
                 const res = await fetch(`${API_BASE}/upload`, { ...options, headers });
                 if (!res.ok) throw new Error("Upload failed");
                 const data = await res.json();
-                return { file_url: `https://foreform.vercel.app${data.file_url}` };
+                
+                // Return the provided file_url directly (Cloudinary URL)
+                return { file_url: data.file_url };
             },
             ExtractDataFromUploadedFile: async (args: { file_url: string; json_schema?: any }) => {
                 const body: any = { file_url: args.file_url };
