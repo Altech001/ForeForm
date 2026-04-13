@@ -36,7 +36,7 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 sm:p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-card border border-border rounded p-4 sm:p-5 space-y-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start gap-2 sm:gap-3">
         <div {...dragHandleProps} className="mt-2 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors">
           <GripVertical className="w-5 h-5" />

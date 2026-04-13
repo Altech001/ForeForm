@@ -11,7 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import QuestionEditor from "@/components/forms/QuestionEditor";
-import ImportQuestionsDialog from "@/components/forms/ImportQuestionsDialog";
+import ImportPanel from "@/components/Panels/ImportPanel";
 import FormBrandingPanel from "@/components/forms/FormBrandingPanel";
 import TeamAccessPanel from "@/components/forms/TeamAccessPanel";
 
@@ -151,7 +151,7 @@ export default function FormBuilder() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Form title"
-                className="text-2xl font-bold border-none px-0 shadow-none focus-visible:ring-0 h-auto"
+                className="text-2xl rounded-none font-bold border-none px-0 shadow-none focus-visible:ring-0 h-auto"
               />
               <Textarea
                 value={description}
@@ -232,8 +232,7 @@ export default function FormBuilder() {
           </TabsContent>
         </Tabs>
       </main>
-
-      <ImportQuestionsDialog open={showImport} onClose={() => setShowImport(false)} onImport={handleImport} />
+      <ImportPanel open={showImport} onOpenChange={setShowImport} onImport={handleImport} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/foreform";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor } from "lucide-react";
+import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { toast } from "sonner";
@@ -95,6 +95,10 @@ export default function Dashboard() {
             <Button onClick={createForm} className="gap-2 h-9 sm:h-10 px-3 sm:px-4">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">New Form</span>
+            </Button>
+            <Button onClick={() => navigate('/bookmark-tasks')} className="gap-2 h-9 sm:h-10 px-3 sm:px-4">
+              <BookMarked className="w-4 h-4" />
+              <span className="hidden sm:inline">Bookmark Tasks</span>
             </Button>
           </div>
         </div>

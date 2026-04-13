@@ -17,6 +17,9 @@ import Signup from './pages/Signup';
 import DocxPreview from './pages/DocxPreview';
 import ProfilePage from './pages/ProfilePage';
 import ProfileWidget from './components/widget/profile';
+import TasksIndex from './pages/Tasks/Index';
+import ViewTask from './pages/Tasks/ViewTask';
+import Documents from './pages/Tasks/Documents';
 import { Navigate, Outlet } from 'react-router-dom';
 
 // Protected Route wrapper component
@@ -86,6 +89,9 @@ const AuthenticatedApp = () => {
           <Route path="/complex-ai" element={<ComplexAI />} />
           <Route path="/docx-preview" element={<DocxPreview />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/bookmark-tasks" element={<TasksIndex />} />
+          <Route path="/bookmark-tasks/:taskId" element={<ViewTask />} />
+          <Route path="/bookmark-documents" element={<Documents />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />

@@ -59,7 +59,7 @@ export default function ProfileWidget() {
                     <DropdownMenuSeparator className="bg-border/40 my-1" />
                     <DropdownMenuItem
                         onClick={() => logout()}
-                        className="rounded-xl px-3 py-2 cursor-pointer focus:bg-red-500/10 focus:text-red-600 text-red-500 transition-all gap-3"
+                        className="rounded px-3 py-2 cursor-pointer focus:bg-red-500/10 focus:text-red-600 text-red-500 transition-all gap-3"
                     >
                         <LogOut className="w-4 h-4" />
                         <span className="font-semibold text-sm">Sign Out</span>

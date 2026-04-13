@@ -32,6 +32,7 @@ interface FormBrandingPanelProps {
 
 export default function FormBrandingPanel({ branding = {}, onChange }: FormBrandingPanelProps) {
   const logoRef = useRef<HTMLInputElement>(null);
+  const coverImageRef = useRef<HTMLInputElement>(null);
 
   const update = (field, value) => onChange({ ...branding, [field]: value });
 
@@ -41,6 +42,14 @@ export default function FormBrandingPanel({ branding = {}, onChange }: FormBrand
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     update("logo_url", file_url);
     toast.success("Logo uploaded");
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    update("cover_image_url", file_url);
+    toast.success("Cover image uploaded");
   };
 
   return (
@@ -154,9 +163,15 @@ export default function FormBrandingPanel({ branding = {}, onChange }: FormBrand
         {(branding.header_style === "cover_image" || branding.header_style === "split") && (
           <div className="space-y-1.5">
             <Label>Cover / Background Image URL</Label>
-            <Input value={branding.cover_image_url || ""} onChange={e => update("cover_image_url", e.target.value)} placeholder="https://images.unsplash.com/..." />
+            <div className="flex gap-2">
+              <Input value={branding.cover_image_url || ""} onChange={e => update("cover_image_url", e.target.value)} placeholder="https://images.unsplash.com/..." className="flex-1" />
+              <Button type="button" variant="outline" size="icon" onClick={() => coverImageRef.current?.click()} title="Upload Cover Image" className="shrink-0">
+                <Upload className="w-4 h-4" />
+              </Button>
+              <input ref={coverImageRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+            </div>
             {branding.cover_image_url && (
-              <img src={branding.cover_image_url} alt="preview" className="mt-2 w-full h-24 object-cover border border-border" />
+              <img src={branding.cover_image_url} alt="preview" className="mt-2 w-full h-24 object-cover border border-border rounded" />
             )}
           </div>
         )}
