@@ -43,23 +43,61 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { base44 } from "@/api/foreform";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface Document {
     id: string;
     name: string;
-    originalName: string;
+    originalName?: string;
+    original_name?: string;
     url: string;
     type: string;
     size: number;
     createdAt: string;
+    created_at?: string;
     isJoint?: boolean;
+    is_joint?: boolean;
 }
 
 export default function Documents() {
     const navigate = useNavigate();
-    const [documents, setDocuments] = useState<Document[]>(() => {
-        const saved = localStorage.getItem("foreform_documents");
-        return saved ? JSON.parse(saved) : [];
+    const queryClient = useQueryClient();
+
+    const { data: documentsData, isLoading } = useQuery({
+        queryKey: ['documents'],
+        queryFn: base44.entities.Document.list
+    });
+
+    // Fallback document list and type mapping
+    const documents: Document[] = (documentsData || []).map((doc: any) => ({
+        ...doc,
+        createdAt: doc.created_at || doc.createdAt || new Date().toISOString()
+    }));
+
+    const createDocMut = useMutation({
+        mutationFn: base44.entities.Document.create,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+            toast.success("Document uploaded successfully!");
+            setIsUploadOpen(false);
+            setUploadFile(null);
+            setCustomName("");
+        }
+    });
+
+    const updateDocMut = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => base44.entities.Document.update(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+        }
+    });
+
+    const deleteDocMut = useMutation({
+        mutationFn: base44.entities.Document.delete,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+            toast.success("Document deleted");
+        }
     });
 
     const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -72,9 +110,6 @@ export default function Documents() {
 
     const [activeFilter, setActiveFilter] = useState<"all" | "joint" | "image" | "pdf">("all");
 
-    useEffect(() => {
-        localStorage.setItem("foreform_documents", JSON.stringify(documents));
-    }, [documents]);
 
     const handleUpload = async () => {
         if (!uploadFile) return;
@@ -82,38 +117,28 @@ export default function Documents() {
         setIsUploading(true);
         try {
             const res = await base44.integrations.Core.UploadFile({ file: uploadFile });
-            const newDoc: Document = {
-                id: Math.random().toString(36).substring(2, 9),
+            const payload = {
                 name: customName || uploadFile.name,
-                originalName: uploadFile.name,
+                original_name: uploadFile.name,
                 url: res.file_url,
                 type: uploadFile.type,
                 size: uploadFile.size,
-                createdAt: new Date().toISOString(),
-                isJoint: activeFilter === "joint"
+                is_joint: activeFilter === "joint"
             };
-            setDocuments(prev => [newDoc, ...prev]);
-            toast.success("Document uploaded successfully!");
-            setIsUploadOpen(false);
-            setUploadFile(null);
-            setCustomName("");
+            createDocMut.mutate(payload);
         } catch (error) {
             toast.error("Failed to upload document");
-        } finally {
             setIsUploading(false);
         }
     };
 
     const handleDelete = (id: string) => {
-        setDocuments(prev => prev.filter(doc => doc.id !== id));
-        toast.success("Document deleted");
+        deleteDocMut.mutate(id);
     };
 
     const handleRename = () => {
         if (!editingDoc || !customName) return;
-        setDocuments(prev => prev.map(doc =>
-            doc.id === editingDoc.id ? { ...doc, name: customName } : doc
-        ));
+        updateDocMut.mutate({ id: editingDoc.id, data: { name: customName } });
         toast.success("Document renamed");
         setIsEditOpen(false);
         setEditingDoc(null);
@@ -121,21 +146,19 @@ export default function Documents() {
     };
 
     const toggleJoint = (id: string) => {
-        setDocuments(prev => prev.map(doc =>
-            doc.id === id ? { ...doc, isJoint: !doc.isJoint } : doc
-        ));
         const doc = documents.find(d => d.id === id);
-        toast.success(doc?.isJoint ? "Removed from Joints" : "Added to Joints", {
-            icon: <LinkIcon className="w-4 h-4 text-primary" />
-        });
+        if (doc) {
+            const newIsJoint = !doc.is_joint && !doc.isJoint;
+            updateDocMut.mutate({ id, data: { is_joint: newIsJoint } });
+            toast.success(doc.isJoint || doc.is_joint ? "Removed from Joints" : "Added to Joints", {
+                icon: <LinkIcon className="w-4 h-4 text-primary" />
+            });
+        }
     };
 
     const onDragEnd = (result: DropResult) => {
+        // Drag and drop ordering disabled since list uses React query and order is sorted by creation date on server
         if (!result.destination || isDnDDisabled) return;
-        const items = Array.from(documents);
-        const [reorderedItem] = items.splice(result.source.index, 1);
-        items.splice(result.destination.index, 0, reorderedItem);
-        setDocuments(items);
     };
 
     const formatSize = (bytes: number) => {
@@ -154,13 +177,14 @@ export default function Documents() {
         return <File className="w-5 h-5 text-slate-500" />;
     };
 
-    const filteredDocuments = documents.filter(doc => {
+    const filteredDocuments = documents.filter((doc: any) => {
         const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const isJoint = doc.is_joint || doc.isJoint;
         const matchesFilter =
             activeFilter === "all" ? true :
-                activeFilter === "joint" ? doc.isJoint :
-                    activeFilter === "image" ? doc.type.includes("image") :
-                        activeFilter === "pdf" ? doc.type.includes("pdf") : true;
+                activeFilter === "joint" ? isJoint :
+                    activeFilter === "image" ? doc.type?.includes("image") :
+                        activeFilter === "pdf" ? doc.type?.includes("pdf") : true;
         return matchesSearch && matchesFilter;
     });
 
@@ -282,9 +306,8 @@ export default function Documents() {
                                                             <GripVertical className="w-5 h-5" />
                                                         </div>
 
-                                                        <div className={`p-2.5 rounded flex items-center justify-center ${doc.isJoint ? "" : ""
-                                                            }`}>
-                                                            {getFileIcon(doc.type)}
+                                                        <div className={`p-2.5 rounded flex items-center justify-center`}>
+                                                            {getFileIcon(doc.type || "")}
                                                         </div>
 
                                                         <div className="flex-1 min-w-0">
@@ -292,7 +315,7 @@ export default function Documents() {
                                                                 <h3 className="text-sm font-bold truncate group-hover:text-primary transition-colors">
                                                                     {doc.name}
                                                                 </h3>
-                                                                {doc.isJoint && (
+                                                                {(doc.is_joint || doc.isJoint) && (
                                                                     <Badge className="bg-primary hover:bg-primary h-4 px-1 text-[8px] ">Joint</Badge>
                                                                 )}
                                                             </div>
@@ -301,7 +324,7 @@ export default function Documents() {
                                                                 <span>•</span>
                                                                 <span>{new Date(doc.createdAt).toLocaleDateString()}</span>
                                                                 <span className="hidden sm:inline">•</span>
-                                                                <span className="hidden sm:inline lowercase">{doc.type.split('/')[1] || 'File'}</span>
+                                                                <span className="hidden sm:inline lowercase">{(doc.type || 'File').split('/')[1] || 'File'}</span>
                                                             </div>
                                                         </div>
 
@@ -320,9 +343,9 @@ export default function Documents() {
                                                                 size="icon"
                                                                 className="h-8 w-8 rounded-full hover:bg-primary/10 hover:text-primary"
                                                                 onClick={() => toggleJoint(doc.id)}
-                                                                title={doc.isJoint ? "Remove Joint" : "Add File Joint"}
+                                                                title={(doc.isJoint || doc.is_joint) ? "Remove Joint" : "Add File Joint"}
                                                             >
-                                                                <LinkIcon className={`w-4 h-4 ${doc.isJoint ? "text-primary fill-current" : ""}`} />
+                                                                <LinkIcon className={`w-4 h-4 ${(doc.isJoint || doc.is_joint) ? "text-primary fill-current" : ""}`} />
                                                             </Button>
 
                                                             <DropdownMenu>
@@ -343,7 +366,7 @@ export default function Documents() {
                                                                         <Download className="w-4 h-4" /> Download
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem onClick={() => toggleJoint(doc.id)} className="gap-2 cursor-pointer">
-                                                                        <Share2 className="w-4 h-4" /> {doc.isJoint ? "Detach Joint" : "Add the File Joint"}
+                                                                        <Share2 className="w-4 h-4" /> {(doc.isJoint || doc.is_joint) ? "Detach Joint" : "Add the File Joint"}
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuSeparator />
                                                                     <DropdownMenuItem

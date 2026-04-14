@@ -118,6 +118,13 @@ export const base44 = {
             update: (id: string, data: any) => fetchApi(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/tasks/${id}`, { method: 'DELETE' }),
             comment: (id: string, text: string) => fetchApi(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) })
+        },
+        Document: {
+            list: () => fetchApi('/documents/'),
+            get: (id: string) => fetchApi(`/documents/${id}`),
+            create: (data: any) => fetchApi('/documents/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/documents/${id}`, { method: 'DELETE' })
         }
     },
     integrations: {
