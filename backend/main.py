@@ -15,6 +15,8 @@ from routers.upload import router as upload_router
 from routers.shares import router as shares_router
 from routers.ai import router as ai_router
 from routers.tasks import router as tasks_router
+from routers.files_better import router as documents_router
+from routers.sect_form import router as sections_router
 
 # ── Create tables ────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
@@ -54,6 +56,8 @@ app.include_router(upload_router)
 app.include_router(shares_router)
 app.include_router(ai_router)
 app.include_router(tasks_router)
+app.include_router(documents_router)
+app.include_router(sections_router)
 
 
 # ── Health check ─────────────────────────────────────────────

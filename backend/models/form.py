@@ -29,3 +29,4 @@ class Form(Base):
     # Relationships
     responses = relationship("FormResponse", back_populates="form", cascade="all, delete-orphan")
     shares = relationship("FormShare", back_populates="form", cascade="all, delete-orphan")
+    sections = relationship("FormSection", back_populates="form", order_by="FormSection.order", cascade="all, delete-orphan")

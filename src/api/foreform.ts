@@ -125,6 +125,13 @@ export const base44 = {
             create: (data: any) => fetchApi('/documents/', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => fetchApi(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/documents/${id}`, { method: 'DELETE' })
+        },
+        FormSection: {
+            list: (formId: string) => fetchApi(`/sections/form/${formId}`),
+            create: (formId: string, data: any) => fetchApi(`/sections/form/${formId}`, { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/sections/${id}`, { method: 'DELETE' }),
+            reorder: (formId: string, sectionIds: string[]) => fetchApi(`/sections/form/${formId}/reorder`, { method: 'POST', body: JSON.stringify(sectionIds) })
         }
     },
     integrations: {

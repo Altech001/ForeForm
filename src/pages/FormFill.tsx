@@ -30,6 +30,12 @@ export default function FormFill() {
     enabled: !!formId,
   });
 
+  const { data: sections = [] } = useQuery({
+    queryKey: ["sections", formId],
+    queryFn: () => base44.entities.FormSection.list(formId!),
+    enabled: !!formId,
+  });
+
   const [step, setStep] = useState<string | number>(INTRO_STEP);
   const [answers, setAnswers] = useState({});
   const [respondentName, setRespondentName] = useState("");
@@ -59,9 +65,16 @@ export default function FormFill() {
   };
 
   const questions = allQuestions.filter((q) => evaluateCondition(q.condition, answers));
-  const currentQuestion = typeof step === "number" ? questions[step] : null;
-  const isLastQuestion = typeof step === "number" && step === questions.length - 1;
-  const progress = typeof step === "number" ? ((step + 1) / questions.length) * 100 : step === DONE_STEP ? 100 : 0;
+  const hasSections = sections.length > 0;
+
+  const currentQuestion = !hasSections && typeof step === "number" ? questions[step] : null;
+  const currentSection = hasSections && typeof step === "number" ? sections[step] : null;
+
+  const isLastQuestion = !hasSections && typeof step === "number" && step === questions.length - 1;
+  const isLastSection = hasSections && typeof step === "number" && step === sections.length - 1;
+
+  const totalSteps = hasSections ? sections.length : questions.length;
+  const progress = typeof step === "number" ? ((step + 1) / totalSteps) * 100 : step === DONE_STEP ? 100 : 0;
 
   // Auto-fetch GPS if form requires it
   useEffect(() => {
@@ -80,12 +93,19 @@ export default function FormFill() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const formattedAnswers = questions.map((q) => ({
-        question_id: q.id,
-        question_label: q.label,
-        question_type: q.type,
-        answer: answers[q.id] || "",
-      }));
+      const formattedAnswers = hasSections
+        ? sections.flatMap(s => s.questions).map(q => ({
+          question_id: q.id,
+          question_label: q.label,
+          question_type: q.type,
+          answer: answers[q.id] || "",
+        }))
+        : questions.map((q) => ({
+          question_id: q.id,
+          question_label: q.label,
+          question_type: q.type,
+          answer: answers[q.id] || "",
+        }));
 
       const responsePayload = {
         form_id: formId,
@@ -139,11 +159,20 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
       setValidationError(""); setDirection(1); setStep(0); return;
     }
     if (typeof step === "number") {
-      if (currentQuestion?.required && !answers[currentQuestion.id]) {
+      if (hasSections && currentSection) {
+        const requiredUnanswered = currentSection.questions.find(q => q.required && !answers[q.id]);
+        if (requiredUnanswered) {
+          setValidationError(`Please answer: ${requiredUnanswered.label}`);
+          return;
+        }
+      } else if (!hasSections && currentQuestion?.required && !answers[currentQuestion.id]) {
         setValidationError("This question is required"); return;
       }
+
       setValidationError("");
-      if (isLastQuestion) {
+      const isLast = hasSections ? isLastSection : isLastQuestion;
+
+      if (isLast) {
         if (branding.require_signature) { setDirection(1); setStep(SIGN_STEP); }
         else submitMutation.mutate();
       } else {
@@ -161,7 +190,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
   const goBack = () => {
     setValidationError(""); setDirection(-1);
     if (step === 0) setStep(INTRO_STEP);
-    else if (step === SIGN_STEP) setStep(questions.length - 1);
+    else if (step === SIGN_STEP) setStep(totalSteps - 1);
     else if (typeof step === "number") setStep(step - 1);
   };
 
@@ -215,7 +244,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
             </span>
           )}
           {typeof step === "number" && (
-            <span className="text-sm text-muted-foreground">{step + 1} / {questions.length}</span>
+            <span className="text-sm text-muted-foreground">{step + 1} / {totalSteps}</span>
           )}
         </div>
       </div>
@@ -267,31 +296,59 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
               </motion.div>
             )}
 
-            {/* QUESTION */}
-            {typeof step === "number" && currentQuestion && (
-              <motion.div key={`q-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded p-8 shadow-none space-y-6" onKeyDown={handleKeyDown}>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">Question {step + 1} of {questions.length}</span>
-                </div>
-                <QuestionRenderer
-                  question={currentQuestion}
-                  value={answers[currentQuestion.id]}
-                  onChange={(val) => { setAnswers({ ...answers, [currentQuestion.id]: val }); setValidationError(""); }}
-                />
-                {validationError && (
-                  <p className="text-sm text-destructive flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />{validationError}</p>
+            {/* QUESTION / SECTION */}
+            {typeof step === "number" && (currentQuestion || currentSection) && (
+              <motion.div key={`step-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded-xl p-6 sm:p-10 shadow-sm space-y-8" onKeyDown={handleKeyDown}>
+
+                {hasSections && currentSection ? (
+                  <div className="space-y-8">
+                    <div className="space-y-1.5 border-b pb-4 border-border/60">
+                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Section {step + 1} of {sections.length}</p>
+                      <h2 className="text-2xl font-bold">{currentSection.title}</h2>
+                      {currentSection.description && <p className="text-sm text-muted-foreground">{currentSection.description}</p>}
+                    </div>
+
+                    <div className="space-y-10">
+                      {(currentSection.questions || []).map((q, idx) => (
+                        <div key={q.id} className="space-y-4">
+                          <QuestionRenderer
+                            question={q}
+                            value={answers[q.id]}
+                            onChange={(val) => { setAnswers({ ...answers, [q.id]: val }); setValidationError(""); }}
+                          />
+                          {idx < currentSection.questions.length - 1 && <div className="h-px bg-slate-100 dark:bg-slate-800/50 w-full" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium bg-primary/10 text-primary px-2.5 py-1 rounded-full">Question {step! as number + 1} of {questions.length}</span>
+                    </div>
+                    <QuestionRenderer
+                      question={currentQuestion!}
+                      value={answers[currentQuestion!.id]}
+                      onChange={(val) => { setAnswers({ ...answers, [currentQuestion!.id]: val }); setValidationError(""); }}
+                    />
+                  </div>
                 )}
-                <div className="flex items-center justify-between pt-2">
+
+                {validationError && (
+                  <p className="text-sm text-destructive flex items-center gap-1.5 p-3 bg-destructive/10 rounded border border-destructive/20"><AlertCircle className="w-3.5 h-3.5" />{validationError}</p>
+                )}
+
+                <div className="flex items-center justify-between pt-6 border-t border-border/50">
                   <Button variant="ghost" onClick={goBack} className="gap-1.5"><ArrowLeft className="w-4 h-4" /> Back</Button>
-                  <Button onClick={goNext} disabled={submitMutation.isPending} className="gap-2 px-6 rounded">
-                    {isLastQuestion && !branding.require_signature ? (
-                      submitMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</> : <><Send className="w-4 h-4" />Submit</>
+                  <Button onClick={goNext} disabled={submitMutation.isPending} className="gap-2 px-8 py-6 text-base rounded shadow-lg shadow-primary/20">
+                    {(hasSections ? isLastSection : isLastQuestion) && !branding.require_signature ? (
+                      submitMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</> : <><Send className="w-4 h-4" />Submit Response</>
                     ) : (
-                      <>Next <ArrowRight className="w-4 h-4" /></>
+                      <>Continue <ArrowRight className="w-4 h-4" /></>
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-center text-muted-foreground">Press Enter to continue</p>
+                <p className="text-[10px] text-center text-muted-foreground uppercase tracking-wider font-semibold opacity-50">Press Enter for next step</p>
               </motion.div>
             )}
 

@@ -14,6 +14,8 @@ import QuestionEditor from "@/components/forms/QuestionEditor";
 import ImportPanel from "@/components/Panels/ImportPanel";
 import FormBrandingPanel from "@/components/forms/FormBrandingPanel";
 import TeamAccessPanel from "@/components/forms/TeamAccessPanel";
+import FormSectionsPanel from "@/components/forms/FormSectionsPanel";
+import { Layers } from "lucide-react";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -135,6 +137,7 @@ export default function FormBuilder() {
           <div className="overflow-x-auto pb-2 sm:pb-0 mb-4 sm:mb-6 -mx-4 px-4 sm:mx-0 sm:px-0">
             <TabsList className="sm:w-auto inline-flex justify-start sm:justify-center min-w-max">
               <TabsTrigger value="questions">Questions</TabsTrigger>
+              <TabsTrigger value="sections" className="gap-1.5"><Layers className="w-3.5 h-3.5" /> Sections</TabsTrigger>
               <TabsTrigger value="settings" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" /> R & B</TabsTrigger>
               <TabsTrigger value="team" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Teams</TabsTrigger>
             </TabsList>
@@ -207,6 +210,12 @@ export default function FormBuilder() {
             >
               <Plus className="w-5 h-5" /> Add Question
             </Button>
+          </TabsContent>
+
+          <TabsContent value="sections">
+            <div className="bg-card rounded p-4 sm:p-8">
+              <FormSectionsPanel formId={formId!} />
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">

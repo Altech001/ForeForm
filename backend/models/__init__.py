@@ -2,6 +2,8 @@ from models.user import User
 from models.form import Form
 from models.form_response import FormResponse
 from models.form_share import FormShare
+from models.form_section import FormSection
 from models.task import Task, TaskActivity
+from models.document import Document
 
-__all__ = ["User", "Form", "FormResponse", "FormShare", "Task", "TaskActivity"]
+__all__ = ["User", "Form", "FormResponse", "FormShare", "FormSection", "Task", "TaskActivity", "Document"]
