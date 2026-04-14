@@ -20,6 +20,10 @@ import ProfileWidget from './components/widget/profile';
 import TasksIndex from './pages/Tasks/Index';
 import ViewTask from './pages/Tasks/ViewTask';
 import Documents from './pages/Tasks/Documents';
+import MeritePlans from './pages/MeriteBills/Plans';
+import MeritePlanDetails from './pages/MeriteBills/PlanDetails';
+import MeriteTransactions from './pages/MeriteBills/Transactions';
+import MeriteUsers from './pages/MeriteBills/Users';
 import { Navigate, Outlet } from 'react-router-dom';
 
 // Protected Route wrapper component
@@ -92,6 +96,10 @@ const AuthenticatedApp = () => {
           <Route path="/bookmark-tasks" element={<TasksIndex />} />
           <Route path="/bookmark-tasks/:taskId" element={<ViewTask />} />
           <Route path="/bookmark-documents" element={<Documents />} />
+          <Route path="/plans" element={<MeritePlans />} />
+          <Route path="/plans/:id" element={<MeritePlanDetails />} />
+          <Route path="/transactions" element={<MeriteTransactions />} />
+          <Route path="/users" element={<MeriteUsers />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />
