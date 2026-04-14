@@ -1,7 +1,3 @@
-"""
-Pydantic schemas for FormShare CRUD.
-Matches the FormShare.db entity definition.
-"""
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,35 +15,35 @@ import { toast } from "sonner";
 
 export default function TasksIndex() {
     const navigate = useNavigate();
-    const [tasks, setTasks] = useState<Task[]>(() => {
-        const saved = localStorage.getItem("foreform_tasks");
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                return [];
-            }
+    const queryClient = useQueryClient();
+
+    const { data: tasksData, isLoading } = useQuery({
+        queryKey: ['tasks'],
+        queryFn: base44.entities.Task.list
+    });
+    const tasks: Task[] = tasksData || [];
+
+    const createTaskMut = useMutation({
+        mutationFn: base44.entities.Task.create,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            toast.success("Task created successfully!");
         }
-        return [
-            {
-                id: "1",
-                title: "Analyze Q3 User Feedback",
-                description: "Review all the negative feedback from the Q3 survey and categorize them.",
-                status: "todo",
-                priority: "high",
-                dueDate: new Date().toISOString(),
-                createdAt: new Date().toISOString(),
-            },
-            {
-                id: "2",
-                title: "Prepare Marketing Form Template",
-                description: "Create a standard template for the marketing team's weekly check-ins.",
-                status: "in_progress",
-                priority: "medium",
-                dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-                createdAt: new Date().toISOString(),
-            }
-        ];
+    });
+
+    const updateTaskMut = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => base44.entities.Task.update(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        }
+    });
+
+    const deleteTaskMut = useMutation({
+        mutationFn: base44.entities.Task.delete,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            toast.success("Task deleted");
+        }
     });
 
     const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -50,27 +51,23 @@ export default function TasksIndex() {
     const [completionFile, setCompletionFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    useEffect(() => {
-        localStorage.setItem("foreform_tasks", JSON.stringify(tasks));
-    }, [tasks]);
-
-    const handleCreateTask = (newTaskData: Omit<Task, "id" | "createdAt">) => {
-        const newTask: Task = {
-            ...newTaskData,
-            id: Math.random().toString(36).substring(2, 9),
-            createdAt: new Date().toISOString(),
+    const handleCreateTask = (newTaskData: any) => {
+        const payload = {
+            title: newTaskData.title,
+            description: newTaskData.description,
+            status: newTaskData.status,
+            priority: newTaskData.priority,
+            assignee_email: newTaskData.assigneeEmail,
+            due_date: newTaskData.dueDate,
         };
-        setTasks(prev => [newTask, ...prev]);
-        toast.success("Task created successfully!");
-        toast.info("Task data is used as knowledge base for AI", { icon: "🤖" });
+        createTaskMut.mutate(payload);
         if (newTaskData.assigneeEmail) {
             toast.success(`Task assigned to ${newTaskData.assigneeEmail} via email.`);
         }
     };
 
     const handleDeleteTask = (id: string) => {
-        setTasks(prev => prev.filter(t => t.id !== id));
-        toast.success("Task deleted");
+        deleteTaskMut.mutate(id);
     };
 
     const toggleTaskStatus = (id: string) => {
@@ -80,16 +77,13 @@ export default function TasksIndex() {
             setCompletionFile(null);
         } else {
             // Unmark done
-            setTasks(prev => prev.map(t => {
-                if (t.id === id) {
-                    return { ...t, status: "todo", attachmentUrl: undefined };
-                }
-                return t;
-            }));
+            updateTaskMut.mutate({ id, data: { status: "todo", attachment_url: null } });
         }
     };
 
     const handleConfirmCompletion = async () => {
+        if (!completingTaskId) return;
+
         let url;
         if (completionFile) {
             setIsUploading(true);
@@ -99,16 +93,16 @@ export default function TasksIndex() {
                 toast.success("Document uploaded successfully!");
             } catch (e) {
                 toast.error("Failed to upload document");
+                setIsUploading(false);
+                return;
             }
             setIsUploading(false);
         }
 
-        setTasks(prev => prev.map(t => {
-            if (t.id === completingTaskId) {
-                return { ...t, status: "done", attachmentUrl: url || t.attachmentUrl, activities: [{ id: Math.random().toString(36).substring(7), action: "marked task as done and uploaded a file", user: "You", createdAt: new Date().toISOString() }, ...(t.activities || [])] };
-            }
-            return t;
-        }));
+        updateTaskMut.mutate({
+            id: completingTaskId,
+            data: { status: "done", attachment_url: url }
+        });
         toast.success("Task marked as done! 🎉");
         setCompletingTaskId(null);
     };
@@ -240,18 +234,18 @@ export default function TasksIndex() {
                                         </Badge>
                                         <div className="flex items-center text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
                                             <Calendar className="w-3 h-3 mr-1" />
-                                            {new Date(task.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            {new Date(task.created_at || task.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </div>
-                                        {task.assigneeEmail && (
-                                            <div className="flex items-center text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md max-w-[120px] sm:max-w-[160px] truncate" title={task.assigneeEmail}>
+                                        {(task.assignee_email || task.assigneeEmail) && (
+                                            <div className="flex items-center text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md max-w-[120px] sm:max-w-[160px] truncate" title={task.assignee_email || task.assigneeEmail}>
                                                 <User className="w-3 h-3 mr-1 shrink-0" />
-                                                <span className="truncate">{task.assigneeEmail}</span>
+                                                <span className="truncate">{task.assignee_email || task.assigneeEmail}</span>
                                             </div>
                                         )}
-                                        {task.attachmentUrl && (
+                                        {(task.attachment_url || task.attachmentUrl) && (
                                             <div
                                                 className="flex items-center text-xs text-blue-500 bg-blue-500/10 px-2 py-1 rounded-md truncate cursor-pointer hover:underline"
-                                                onClick={(e) => { e.stopPropagation(); window.open(task.attachmentUrl, '_blank'); }}
+                                                onClick={(e) => { e.stopPropagation(); window.open(task.attachment_url || task.attachmentUrl, '_blank'); }}
                                             >
                                                 <Paperclip className="w-3 h-3 mr-1 shrink-0" />
                                                 <span className="truncate">Attached File</span>

@@ -1,6 +1,3 @@
-"""
-User model — stores registered accounts.
-"""
 import uuid
 import datetime
 from sqlalchemy import Column, String, DateTime, Enum as SAEnum

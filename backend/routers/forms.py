@@ -1,7 +1,3 @@
-"""
-Forms router — full CRUD for forms.
-GET /{form_id} is public (no auth), all others require authentication.
-"""
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,10 +13,19 @@ router = APIRouter(prefix="/api/forms", tags=["forms"])
 
 @router.get("/", response_model=List[FormOut])
 def list_forms(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """List all forms owned by the authenticated user, sorted by created_date desc."""
+    """List all forms owned by or shared with the authenticated user, sorted by created_date desc."""
+    from models.form_share import FormShare
+    
+    # Get IDs of forms shared with user
+    shared_form_ids = db.query(FormShare.form_id).filter(FormShare.shared_with_email == current_user.email).all()
+    shared_form_ids = [f[0] for f in shared_form_ids]
+    
     return (
         db.query(Form)
-        .filter(Form.created_by == current_user.email)
+        .filter(
+            (Form.created_by == current_user.email) | 
+            (Form.id.in_(shared_form_ids))
+        )
         .order_by(Form.created_date.desc())
         .all()
     )
@@ -62,14 +67,23 @@ def update_form(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Update any subset of form fields. Only the form owner can update."""
-    form = (
-        db.query(Form)
-        .filter(Form.id == form_id, Form.created_by == current_user.email)
-        .first()
-    )
+    """Update any subset of form fields. Only the form owner or an editor can update."""
+    from models.form_share import FormShare
+    
+    form = db.query(Form).filter(Form.id == form_id).first()
     if not form:
-        raise HTTPException(status_code=404, detail="Form not found or access denied")
+        raise HTTPException(status_code=404, detail="Form not found")
+        
+    # Check permissions: owner or editor share
+    is_owner = form.created_by == current_user.email
+    has_edit_access = db.query(FormShare).filter(
+        FormShare.form_id == form_id, 
+        FormShare.shared_with_email == current_user.email,
+        FormShare.permission == "editor"
+    ).first() is not None
+    
+    if not (is_owner or has_edit_access):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     update_data = data.model_dump(exclude_unset=True)
 

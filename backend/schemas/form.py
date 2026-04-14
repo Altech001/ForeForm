@@ -1,7 +1,4 @@
-"""
-Pydantic schemas for Form CRUD.
-Structured to match the Form.db entity definition and the README spec.
-"""
+
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from datetime import datetime

@@ -1,6 +1,3 @@
-"""
-Form sharing router — share forms with other users.
-"""
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session

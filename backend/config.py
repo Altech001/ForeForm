@@ -1,6 +1,3 @@
-"""
-Application configuration — loaded from .env file.
-"""
 import os
 from dotenv import load_dotenv
 

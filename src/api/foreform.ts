@@ -105,6 +105,19 @@ export const base44 = {
             create: (data: any) => fetchApi(`/forms/${data.form_id}/shares`, { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => fetchApi(`/shares/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/shares/${id}`, { method: 'DELETE' })
+        },
+        Task: {
+            list: () => fetchApi('/tasks'),
+            filter: async (opts: any) => {
+                if (opts.id) {
+                    return [await fetchApi(`/tasks/${opts.id}`)];
+                }
+                return await fetchApi('/tasks');
+            },
+            create: (data: any) => fetchApi('/tasks/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/tasks/${id}`, { method: 'DELETE' }),
+            comment: (id: string, text: string) => fetchApi(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) })
         }
     },
     integrations: {

@@ -1,12 +1,7 @@
-"""
-Database engine, session factory, and base model.
-Supports both SQLite (dev) and PostgreSQL (production).
-"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import settings
 
-# SQLite needs connect_args for thread safety
 connect_args = {}
 if settings.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
@@ -23,7 +18,6 @@ Base = declarative_base()
 
 
 def get_db():
-    """FastAPI dependency — yields a DB session per request."""
     db = SessionLocal()
     try:
         yield db

@@ -1,7 +1,3 @@
-"""
-Form model — the core entity.
-Questions and branding are stored as JSON columns for schema flexibility.
-"""
 import uuid
 import datetime
 from sqlalchemy import Column, String, Integer, JSON, DateTime, Enum as SAEnum

@@ -1,7 +1,3 @@
-"""
-JWT utilities — token creation & verification, password hashing,
-and the `get_current_user` FastAPI dependency.
-"""
 from datetime import datetime, timedelta
 from typing import Optional
 

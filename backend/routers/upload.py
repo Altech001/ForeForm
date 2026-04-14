@@ -1,20 +1,10 @@
-"""
-Upload router — file uploads (logo, PDF, XLSX, CSV).
-Stores files locally in development; swap to S3/Cloudinary for production.
-"""
 import os
-import uuid
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
-
-from config import settings
 from models.user import User
 from auth.jwt import get_current_user
+from uploads.cloudary import upload_to_cloudary
 
 router = APIRouter(prefix="/api", tags=["upload"])
-
-# Ensure upload directory exists
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {
     ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",  # images
@@ -29,8 +19,8 @@ async def upload_file(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Upload a file (logo, PDF, spreadsheet, etc.).
-    Returns { file_url: "/api/files/<filename>" }.
+    Upload a file (logo, PDF, spreadsheet, etc.) to Cloudinary.
+    Returns { file_url: "https://res.cloudinary.com/..." }.
     """
     # Validate extension
     ext = os.path.splitext(file.filename or "")[1].lower()
@@ -42,20 +32,9 @@ async def upload_file(
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File exceeds 10 MB limit")
 
-    # Save with unique filename
-    unique_name = f"{uuid.uuid4().hex}{ext}"
-    file_path = os.path.join(settings.UPLOAD_DIR, unique_name)
-    with open(file_path, "wb") as f:
-        f.write(contents)
+    try:
+        secure_url = upload_to_cloudary(contents, file.filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload to Cloudinary failed: {str(e)}")
 
-    file_url = f"/api/files/{unique_name}"
-    return {"file_url": file_url}
-
-
-@router.get("/files/{filename}")
-async def serve_file(filename: str):
-    """Serve an uploaded file by filename."""
-    file_path = os.path.join(settings.UPLOAD_DIR, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
+    return {"file_url": secure_url}

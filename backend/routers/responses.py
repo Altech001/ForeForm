@@ -1,7 +1,3 @@
-"""
-Responses router — submit and manage form responses.
-POST /{form_id}/responses is public; GET and DELETE require auth.
-"""
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -24,14 +20,21 @@ def list_responses(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all responses for a form. Only the form owner can view."""
-    form = (
-        db.query(Form)
-        .filter(Form.id == form_id, Form.created_by == current_user.email)
-        .first()
-    )
+    """List all responses for a form. Owner or any shared user (editor/viewer) can view."""
+    from models.form_share import FormShare
+    
+    form = db.query(Form).filter(Form.id == form_id).first()
     if not form:
-        raise HTTPException(status_code=404, detail="Form not found or access denied")
+        raise HTTPException(status_code=404, detail="Form not found")
+        
+    is_owner = form.created_by == current_user.email
+    has_share_access = db.query(FormShare).filter(
+        FormShare.form_id == form_id, 
+        FormShare.shared_with_email == current_user.email
+    ).first() is not None
+    
+    if not (is_owner or has_share_access):
+        raise HTTPException(status_code=403, detail="Access denied")
     return (
         db.query(FormResponse)
         .filter(FormResponse.form_id == form_id)
@@ -77,13 +80,25 @@ def get_response(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Get a single response. Only the form owner can view."""
+    """Get a single response. Owner or any shared user can view."""
+    from models.form_share import FormShare
+    
     response = db.query(FormResponse).filter(FormResponse.id == response_id).first()
     if not response:
         raise HTTPException(status_code=404, detail="Response not found")
-    # Verify the current user owns the parent form
-    form = db.query(Form).filter(Form.id == response.form_id, Form.created_by == current_user.email).first()
+        
+    # Verify the current user owns or has share access to parent form
+    form = db.query(Form).filter(Form.id == response.form_id).first()
     if not form:
+        raise HTTPException(status_code=404, detail="Form not found")
+        
+    is_owner = form.created_by == current_user.email
+    has_share_access = db.query(FormShare).filter(
+        FormShare.form_id == form.id, 
+        FormShare.shared_with_email == current_user.email
+    ).first() is not None
+    
+    if not (is_owner or has_share_access):
         raise HTTPException(status_code=403, detail="Access denied")
     return response
 
@@ -96,12 +111,25 @@ def delete_response(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Delete a response. Only the form owner can delete."""
+    """Delete a response. Owner or editor can delete."""
+    from models.form_share import FormShare
+    
     response = db.query(FormResponse).filter(FormResponse.id == response_id).first()
     if not response:
         raise HTTPException(status_code=404, detail="Response not found")
-    form = db.query(Form).filter(Form.id == response.form_id, Form.created_by == current_user.email).first()
+        
+    form = db.query(Form).filter(Form.id == response.form_id).first()
     if not form:
+         raise HTTPException(status_code=404, detail="Form not found")
+         
+    is_owner = form.created_by == current_user.email
+    has_edit_access = db.query(FormShare).filter(
+        FormShare.form_id == form.id, 
+        FormShare.shared_with_email == current_user.email,
+        FormShare.permission == "editor"
+    ).first() is not None
+    
+    if not (is_owner or has_edit_access):
         raise HTTPException(status_code=403, detail="Access denied")
     db.delete(response)
     form.response_count = max((form.response_count or 1) - 1, 0)

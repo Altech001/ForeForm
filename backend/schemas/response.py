@@ -1,7 +1,4 @@
-"""
-Pydantic schemas for FormResponse CRUD.
-Matches the FormResponse.db entity definition.
-"""
+
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from datetime import datetime

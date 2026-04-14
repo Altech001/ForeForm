@@ -1,7 +1,3 @@
-"""
-FormFlow — FastAPI Backend
-Main application entry point.
-"""
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,7 +5,7 @@ from config import settings
 from db import engine, Base
 
 # Import all models so SQLAlchemy registers them before create_all
-from models import User, Form, FormResponse, FormShare  # noqa: F401
+from models import User, Form, FormResponse, FormShare, Task, TaskActivity  # noqa: F401
 
 # Import routers
 from routers.auth import router as auth_router
@@ -18,6 +14,7 @@ from routers.responses import router as responses_router
 from routers.upload import router as upload_router
 from routers.shares import router as shares_router
 from routers.ai import router as ai_router
+from routers.tasks import router as tasks_router
 
 # ── Create tables ────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
@@ -36,11 +33,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         settings.FRONTEND_ORIGIN,
+        "*",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "https://foreform.vercel.app",
-        
+        "https://fore-form.vercel.app",
+        "https://form.pitbox.fun",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -54,6 +53,7 @@ app.include_router(responses_router)
 app.include_router(upload_router)
 app.include_router(shares_router)
 app.include_router(ai_router)
+app.include_router(tasks_router)
 
 
 # ── Health check ─────────────────────────────────────────────

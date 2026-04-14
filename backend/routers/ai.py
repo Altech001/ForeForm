@@ -1,7 +1,3 @@
-"""
-AI router — extract questions from uploaded files or raw text.
-Uses OpenAI (if configured) or returns a helpful error.
-"""
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

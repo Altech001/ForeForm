@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,34 +15,34 @@ export default function ViewTask() {
     const { taskId } = useParams();
     const navigate = useNavigate();
 
-    const [task, setTask] = useState<Task | null>(null);
-    const [tasks, setTasks] = useState<Task[]>([]);
+    const queryClient = useQueryClient();
+
+    const { data: taskArray, isLoading } = useQuery({
+        queryKey: ['tasks', taskId],
+        queryFn: () => base44.entities.Task.filter({ id: taskId })
+    });
+    const task: Task | undefined = taskArray?.[0];
+
+    const updateTaskMut = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => base44.entities.Task.update(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+        }
+    });
+
+    const addCommentMut = useMutation({
+        mutationFn: ({ id, text }: { id: string, text: string }) => base44.entities.Task.comment(id, text),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+            setNewComment("");
+        }
+    });
 
     const [newComment, setNewComment] = useState("");
     const [isUploading, setIsUploading] = useState(false);
 
-    useEffect(() => {
-        const saved = localStorage.getItem("foreform_tasks");
-        if (saved) {
-            try {
-                const parsed: Task[] = JSON.parse(saved);
-                setTasks(parsed);
-                const found = parsed.find((t) => t.id === taskId);
-                if (found) setTask(found);
-            } catch (e) {
-                // error parsing
-            }
-        }
-    }, [taskId]);
-
-    const updateTask = (updatedTask: Task) => {
-        setTask(updatedTask);
-        const newTasks = tasks.map((t) => t.id === updatedTask.id ? updatedTask : t);
-        setTasks(newTasks);
-        localStorage.setItem("foreform_tasks", JSON.stringify(newTasks));
-    };
-
-    if (!task) {
+    if (isLoading || !task) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center overflow-x-hidden overflow-y-auto w-full">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -55,38 +56,14 @@ export default function ViewTask() {
 
     const toggleStatus = () => {
         const newStatus = task.status === "done" ? "todo" : "done";
-
-        let activities = task.activities || [];
-        activities = [
-            { id: Math.random().toString(36).substring(7), action: `marked task as ${newStatus}`, user: "You", createdAt: new Date().toISOString() },
-            ...activities
-        ];
-
-        updateTask({ ...task, status: newStatus, activities });
+        updateTaskMut.mutate({ id: task.id, data: { status: newStatus } });
         toast.success(`Task marked as ${newStatus === 'done' ? 'complete! 🎉' : 'todo'}`);
     };
 
     const handleAddComment = () => {
-        if (!newComment.trim()) return;
-
-        const comment: Comment = {
-            id: Math.random().toString(36).substring(7),
-            text: newComment,
-            user: "You",
-            createdAt: new Date().toISOString()
-        };
-
-        const comments = [...(task.comments || []), comment];
-
-        let activities = task.activities || [];
-        activities = [
-            { id: Math.random().toString(36).substring(7), action: "added a comment", user: "You", createdAt: new Date().toISOString() },
-            ...activities
-        ];
-
-        updateTask({ ...task, comments, activities });
-        setNewComment("");
-        toast.success("Comment added");
+        if (!newComment.trim() || !task) return;
+        addCommentMut.mutate({ id: task.id, text: newComment });
+        toast.info("Adding comment...", { icon: "📝" });
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,21 +73,10 @@ export default function ViewTask() {
         setIsUploading(true);
         try {
             const res = await base44.integrations.Core.UploadFile({ file });
-            const newAttachment = {
-                id: Math.random().toString(36).substring(7),
-                name: file.name,
-                url: res.file_url
-            };
-
-            const attachmentUrls = [...(task.attachmentUrls || []), newAttachment];
-
-            let activities = task.activities || [];
-            activities = [
-                { id: Math.random().toString(36).substring(7), action: `uploaded document: ${file.name}`, user: "You", createdAt: new Date().toISOString() },
-                ...activities
-            ];
-
-            updateTask({ ...task, attachmentUrls, activities });
+            updateTaskMut.mutate({
+                id: task.id,
+                data: { attachment_url: res.file_url, status: task.status }
+            });
             toast.success("File uploaded and attached!");
         } catch (err) {
             toast.error("Failed to upload document");
@@ -149,7 +115,7 @@ export default function ViewTask() {
                                 </Badge>
                                 <span className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-md text-xs font-medium shrink-0">
                                     <Calendar className="w-3.5 h-3.5" />
-                                    Created {new Date(task.createdAt).toLocaleDateString()}
+                                    Created {new Date(task.created_at || task.createdAt || Date.now()).toLocaleDateString()}
                                 </span>
                             </div>
                         </div>
@@ -180,30 +146,19 @@ export default function ViewTask() {
                             </div>
 
                             <div className="space-y-2 max-w-full overflow-hidden">
-                                {(task.attachmentUrls || []).length > 0 || task.attachmentUrl ? (
+                                {task.attachment_url || task.attachmentUrl ? (
                                     <>
-                                        {task.attachmentUrl && (
-                                            <div className="flex items-center justify-between p-3 border rounded bg-card/60 shadow-sm transition hover:shadow cursor-pointer max-w-full overflow-hidden" onClick={() => window.open(task.attachmentUrl, '_blank')}>
+                                        {(task.attachment_url || task.attachmentUrl) && (
+                                            <div className="flex items-center justify-between p-3 border rounded bg-card/60 shadow-sm transition hover:shadow cursor-pointer max-w-full overflow-hidden" onClick={() => window.open(task.attachment_url || task.attachmentUrl, '_blank')}>
                                                 <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
                                                     <div className="w-8 h-8 rounded bg-blue-500/10 flex items-center justify-center shrink-0">
                                                         <Paperclip className="w-4 h-4 text-blue-500" />
                                                     </div>
-                                                    <p className="text-sm font-medium truncate">Document submmitted on Completion</p>
+                                                    <p className="text-sm font-medium truncate">Document uploaded</p>
                                                 </div>
                                                 <span className="text-xs text-muted-foreground whitespace-nowrap pl-4 shrink-0">View</span>
                                             </div>
                                         )}
-                                        {(task.attachmentUrls || []).map((file) => (
-                                            <div key={file.id} className="flex items-center justify-between p-3 border rounded bg-card/60 shadow-none transition hover:shadow cursor-pointer max-w-full overflow-hidden" onClick={() => window.open(file.url, '_blank')}>
-                                                <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-                                                    <div className="w-8 h-8 rounded bg-muted flex items-center justify-center shrink-0">
-                                                        <Paperclip className="w-4 h-4 text-muted-foreground" />
-                                                    </div>
-                                                    <p className="text-sm font-medium truncate">{file.name}</p>
-                                                </div>
-                                                <span className="text-xs text-muted-foreground whitespace-nowrap pl-4 shrink-0">View</span>
-                                            </div>
-                                        ))}
                                     </>
                                 ) : (
                                     <div className="text-sm text-primary bg-primary/5 border border-dashed border-primary/40 rounded p-6 text-center break-words">
@@ -220,8 +175,8 @@ export default function ViewTask() {
                             </h3>
 
                             <div className="space-y-4 mb-4 max-w-full overflow-hidden">
-                                {(task.comments || []).length > 0 ? (
-                                    (task.comments || []).map((comment) => (
+                                {(task.activities || []).filter(a => a.action.startsWith("commented: ")).length > 0 ? (
+                                    (task.activities || []).filter(a => a.action.startsWith("commented: ")).map((comment) => (
                                         <div key={comment.id} className="flex gap-3 max-w-full break-words">
                                             <div className="w-8 h-8 rounded-full bg-primary/20 shrink-0 flex items-center justify-center uppercase font-bold text-xs">
                                                 {comment.user.charAt(0)}
@@ -229,9 +184,9 @@ export default function ViewTask() {
                                             <div className="bg-muted/40 border border-border/50 rounded-2xl rounded-tl-sm p-3 px-4 flex-1 min-w-0 overflow-hidden">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="font-semibold text-xs truncate mr-2">{comment.user}</span>
-                                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{new Date(comment.created_at || comment.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
-                                                <p className="text-sm text-foreground/90 leading-relaxed break-words">{comment.text}</p>
+                                                <p className="text-sm text-foreground/90 leading-relaxed break-words">{comment.action.replace("commented: ", "")}</p>
                                             </div>
                                         </div>
                                     ))
@@ -271,33 +226,27 @@ export default function ViewTask() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="py-4 space-y-3 p-4">
-                                {task.assigneeEmail ? (
+                                {task.assignee_email || task.assigneeEmail ? (
                                     <div className="flex items-center gap-3 relative group w-full overflow-hidden">
                                         <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
                                             <User className="w-4 h-4" />
                                         </div>
                                         <div className="overflow-hidden flex-1 min-w-0">
                                             <p className="text-sm font-medium truncate">Primary Assignee</p>
-                                            <p className="text-xs text-primary truncate max-w-full block" title={task.assigneeEmail}>{task.assigneeEmail}</p>
+                                            <p className="text-xs text-primary truncate max-w-full block" title={task.assignee_email || task.assigneeEmail}>{task.assignee_email || task.assigneeEmail}</p>
                                         </div>
                                     </div>
                                 ) : (
                                     <p className="text-sm text-primary break-words">Unassigned</p>
                                 )}
 
-                                {(task.assignees || []).map((email, idx) => (
-                                    <div key={idx} className="flex items-center gap-3 relative group mt-2 w-full overflow-hidden">
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                            <User className="w-4 h-4" />
-                                        </div>
-                                        <div className="overflow-hidden flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">Collaborator</p>
-                                            <p className="text-xs text-primary truncate max-w-full block" title={email}>{email}</p>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                <Button variant="outline" size="sm" className="w-full mt-2 border-dashed border-primary text-primary shadow-none whitespace-nowrap">
+                                <Button variant="outline" size="sm" className="w-full mt-2 border-dashed border-primary text-primary shadow-none whitespace-nowrap" onClick={() => {
+                                    const email = window.prompt("Enter teammate's email to assign:");
+                                    if (email && email.trim() !== '') {
+                                        updateTaskMut.mutate({ id: task.id, data: { assignee_email: email.trim() } });
+                                        toast.success("Assigned successfully!");
+                                    }
+                                }}>
                                     <Plus className="w-4 h-4 mr-2 shrink-0" /> Add Assignee
                                 </Button>
                             </CardContent>
@@ -317,7 +266,7 @@ export default function ViewTask() {
                                                 {activity.action}
                                             </p>
                                             <p className="text-[10px] text-muted-foreground/50 font-medium whitespace-nowrap">
-                                                {new Date(activity.createdAt).toLocaleDateString()} at {new Date(activity.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                {new Date(activity.created_at || activity.createdAt || Date.now()).toLocaleDateString()} at {new Date(activity.created_at || activity.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </p>
                                         </div>
                                     </div>
@@ -330,7 +279,7 @@ export default function ViewTask() {
                                             created this task
                                         </p>
                                         <p className="text-[10px] text-muted-foreground/50 font-medium whitespace-nowrap">
-                                            {new Date(task.createdAt).toLocaleDateString()}
+                                            {new Date(task.created_at || task.createdAt || Date.now()).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>

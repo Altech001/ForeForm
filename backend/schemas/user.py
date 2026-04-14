@@ -1,6 +1,3 @@
-"""
-Pydantic schemas for User registration & authentication.
-"""
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime

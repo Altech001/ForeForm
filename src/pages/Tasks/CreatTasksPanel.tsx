@@ -19,6 +19,7 @@ export interface Activity {
     action: string;
     user: string;
     createdAt: string;
+    created_at?: string;
 }
 
 export interface Task {
@@ -28,9 +29,13 @@ export interface Task {
     status: "todo" | "in_progress" | "done";
     priority: "low" | "medium" | "high";
     dueDate: string;
+    due_date?: string;
     createdAt: string;
+    created_at?: string;
     assigneeEmail?: string;
+    assignee_email?: string;
     attachmentUrl?: string;
+    attachment_url?: string;
     attachmentUrls?: { id: string, name: string, url: string }[];
     reviewNote?: string;
     comments?: Comment[];

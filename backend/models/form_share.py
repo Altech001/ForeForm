@@ -1,6 +1,3 @@
-"""
-FormShare model — allows sharing forms with other users via email.
-"""
 import uuid
 import datetime
 from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SAEnum
