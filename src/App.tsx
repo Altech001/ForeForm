@@ -1,32 +1,31 @@
-import { Toaster } from "@/components/ui/toaster"
-import { Toaster as SonnerToaster } from "sonner"
-import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import PageNotFound from './lib/PageNotFound';
-import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { queryClientInstance } from '@/lib/query-client';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import { Toaster as SonnerToaster } from "sonner";
+import ProfileWidget from './components/widget/profile';
+import PageNotFound from './lib/PageNotFound';
+import AIRespondents from './pages/AIRespondents';
+import ComplexAI from './pages/ComplexAI';
 import Dashboard from './pages/Dashboard';
+import DocxPreview from './pages/DocxPreview';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
 import FormResponses from './pages/FormResponses';
-import ResponseView from './pages/ResponseView';
-import AIRespondents from './pages/AIRespondents';
-import ComplexAI from './pages/ComplexAI';
 import Login from './pages/Login';
-import Signup from './pages/Signup';
-import DocxPreview from './pages/DocxPreview';
-import ProfilePage from './pages/ProfilePage';
-import ProfileWidget from './components/widget/profile';
-import TasksIndex from './pages/Tasks/Index';
-import ViewTask from './pages/Tasks/ViewTask';
-import Documents from './pages/Tasks/Documents';
-import MeritePlans from './pages/MeriteBills/Plans';
 import MeritePlanDetails from './pages/MeriteBills/PlanDetails';
+import MeritePlans from './pages/MeriteBills/Plans';
 import MeriteTransactions from './pages/MeriteBills/Transactions';
 import MeriteUsers from './pages/MeriteBills/Users';
+import ProfilePage from './pages/ProfilePage';
+import ResponseView from './pages/ResponseView';
+import Signup from './pages/Signup';
+import Documents from './pages/Tasks/Documents';
+import TasksIndex from './pages/Tasks/Index';
+import ViewTask from './pages/Tasks/ViewTask';
 import AgentPage from './pages/agent';
-import { Navigate, Outlet } from 'react-router-dom';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {

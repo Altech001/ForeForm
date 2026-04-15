@@ -356,6 +356,16 @@ export class ForeFormAgent {
         return [...this.history];
     }
 
+    // Set conversation history
+    setHistory(history: AgentMessage[]) {
+        this.history = [...history];
+    }
+
+    // Remove the last N entries from history
+    popHistory(count: number = 1) {
+        this.history = this.history.slice(0, Math.max(0, this.history.length - count));
+    }
+
     // ─── Main Chat Method ────────────────────────────────────────
 
     async chat(userMessage: string, options?: { files?: { mimeType: string; data: string }[], search?: boolean, model?: string }): Promise<AgentResponse> {
@@ -441,7 +451,9 @@ export class ForeFormAgent {
     // ─── Gemini API Call ─────────────────────────────────────────
 
     private async callGemini(useSearch: boolean = false, modelOverride?: string): Promise<any> {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelOverride || GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+        const localKey = localStorage.getItem("foreform_api_key");
+        const key = localKey || GEMINI_API_KEY;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelOverride || GEMINI_MODEL}:generateContent?key=${key}`;
 
         const body: any = {
             contents: this.history.map((msg) => ({

@@ -2,12 +2,27 @@ import React, { useState } from "react";
 import { base44 } from "@/api/foreform";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked } from "lucide-react";
+import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { toast } from "sonner";
 import FormCard from "@/components/forms/FormCard";
 import TemplateGallery from "@/components/forms/TemplateGallery";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -18,6 +33,8 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ["forms"],
@@ -117,8 +134,11 @@ export default function Dashboard() {
               <img src="/layout.png" alt="Browse Templates" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
               <span className="text-xs sm:text-sm font-medium">Browse Templates</span>
             </button>
-            <button onClick={() => navigate('/complex-ai')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <img src="/star.png" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
+            <button onClick={() => setIsGeneratorOpen(true)} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center group">
+              <div className="relative">
+                <img src="/star.png" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm group-hover:scale-110 transition-transform" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+              </div>
               <span className="text-xs sm:text-sm font-medium">Generate Form</span>
             </button>
             <button onClick={() => navigate('/docx-preview')} className="bg-card border border-border/60 hover:border-primary/50 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
@@ -190,6 +210,86 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      <GeneratorSelection
+        isOpen={isGeneratorOpen}
+        onClose={() => setIsGeneratorOpen(false)}
+        isMobile={isMobile}
+        onSelect={(path) => {
+          setIsGeneratorOpen(false);
+          navigate(path);
+        }}
+      />
     </div>
+  );
+}
+
+function GeneratorSelection({ isOpen, onClose, isMobile, onSelect }: {
+  isOpen: boolean;
+  onClose: () => void;
+  isMobile: boolean;
+  onSelect: (path: string) => void;
+}) {
+  const content = (
+    <div className="grid gap-4 p-4 sm:p-0">
+      <button
+        onClick={() => onSelect("/agent")}
+        className="flex items-center gap-4 p-4 rounded border border-border/20 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+      >
+        <div className="w-12 h-12  flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <BrainCircuit className="w-6 h-6 text-primary" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-base">ForeForm Agent</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Intelligent & iterative. Chat with AI to build complex, multi-section forms exactly how you want.
+          </p>
+        </div>
+      </button>
+
+      <button
+        onClick={() => onSelect("/complex-ai")}
+        className="flex items-center gap-4 p-4 rounded border border-border/20 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+      >
+        <div className="w-12 h-12 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+          <Sparkles className="w-6 h-6 text-amber-500" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-base">ForeForm Assistant</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Fast & direct. Generate a complete form instantly from a single prompt or document.
+          </p>
+        </div>
+      </button>
+    </div>
+  );
+
+  const title = "Choose your AI power";
+  const description = "Select the best AI experience for your form creation needs.";
+
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DrawerContent className="pb-8 px-4 bg-card">
+          <DrawerHeader className="text-left px-0">
+            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerDescription>{description}</DrawerDescription>
+          </DrawerHeader>
+          {content}
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px] bg-card">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {content}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -7,6 +7,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import AgentSettings from "./agent_settings";
 import { Input } from "@/components/ui/input";
 import type { AgentResponse } from "@/lib/ai_agent";
 import { getAgent } from "@/lib/ai_agent";
@@ -83,9 +84,7 @@ const TOOL_LABELS: Record<string, { label: string; icon: any; color: string }> =
 
 const QUICK_PROMPTS = [
     { icon: "🎓", text: "Create a student course feedback survey" },
-    { icon: "💼", text: "Build an employee satisfaction form" },
     { icon: "🏥", text: "Generate a patient intake questionnaire" },
-    { icon: "📊", text: "Design a customer NPS survey" },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────
@@ -103,6 +102,7 @@ export default function FormAgent() {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
     const [selectedModel, setSelectedModel] = useState("fast"); // UI label: auto, fast, expert, heavy
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fileToBase64 = (file: File): Promise<string> => {
@@ -137,18 +137,25 @@ export default function FormAgent() {
 
     // ─── Send Message ────────────────────────────────────────────
 
-    const sendMessage = useCallback(async (text?: string) => {
+    const sendMessage = useCallback(async (text?: string, isRegeneration = false) => {
         const msg = (text || input).trim();
-        if ((!msg && selectedFiles.length === 0) || isLoading) return;
-        setInput("");
+        if ((!msg && selectedFiles.length === 0 && !isRegeneration) || isLoading) return;
 
-        const filesToProcess = [...selectedFiles];
-        setSelectedFiles([]);
+        let filesToProcess: File[] = [];
 
-        const userMessage: ChatMessage = {
-            id: uid(), role: "user", text: msg || (filesToProcess.length > 0 ? "Analyzed files" : ""), timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, userMessage]);
+        if (!isRegeneration) {
+            setInput("");
+            filesToProcess = [...selectedFiles];
+            setSelectedFiles([]);
+
+            const userMessage: ChatMessage = {
+                id: uid(), role: "user", text: msg || (filesToProcess.length > 0 ? "Analyzed files" : ""), timestamp: new Date(),
+            };
+            setMessages(prev => [...prev, userMessage]);
+        } else {
+            // Remove the last turn from agent history to allow re-chatting the same prompt
+            agent.current.popHistory(2);
+        }
 
         const loadingId = uid();
         setMessages(prev => [...prev, {
@@ -203,14 +210,34 @@ export default function FormAgent() {
                 } : m
             ));
         } catch (err: any) {
+            const isQuotaError = err.message?.includes("429");
+            const isSecurityError = err.message?.includes("403") || err.message?.includes("leaked");
+
+            const quotaMessage = "### 🚀 Quota Reached\nYou've reached the free tier limit for today. \n\nTo continue building without interruption:\n*   **Upgrade to ForeForm Premium** for unlimited AI power.\n*   **Enter your own API Key** in settings to skip our shared limits.\n*   Or wait 24 hours for your free credits to reset.\n\n[Upgrade to Pro](/pricing) &nbsp; | &nbsp; [Settings](/settings)";
+
+            const securityMessage = "### 🔒 Security Alert\nYour Google AI key has been flagged as **leaked** or **revoked** by Google for your safety.\n\n**To continue:**\n1.  Go to [Google AI Studio](https://aistudio.google.com/app/apikey).\n2.  Create a **new API key**.\n3.  Click the **Settings** icon here and paste your new key.\n\n*Using a leaked key is blocked by Google to protect your account.*";
+
+            let displayMessage = `⚠️ Error: ${err.message || "Something went wrong."}`;
+            if (isQuotaError) displayMessage = quotaMessage;
+            if (isSecurityError) displayMessage = securityMessage;
+
             setMessages(prev => prev.map(m =>
                 m.id === loadingId ? {
                     ...m,
-                    text: `⚠️ Error: ${err.message || "Something went wrong."}`,
+                    text: displayMessage,
                     isStreaming: false,
                 } : m
             ));
-            toast.error("Agent error");
+
+            if (isQuotaError) {
+                toast.error("Daily quota reached");
+            } else if (isSecurityError) {
+                toast.error("API Key Security Alert", {
+                    description: "Your key is leaked and blocked by Google.",
+                });
+            } else {
+                toast.error("Agent error");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -299,6 +326,9 @@ export default function FormAgent() {
                 </Button>
 
                 <div className="flex-1" />
+                <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)} className="rounded-xl text-muted-foreground hover:text-primary transition-colors">
+                    <Settings className="w-5 h-5" />
+                </Button>
                 <Button variant="ghost" size="icon" onClick={clearChat} className="rounded-xl text-muted-foreground hover:text-destructive transition-colors">
                     <Trash2 className="w-5 h-5" />
                 </Button>
@@ -317,11 +347,19 @@ export default function FormAgent() {
                             <Share2 className="w-4 h-4" /> Share
                         </Button>
 
+                        <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)} className="rounded-xl text-muted-foreground hover:text-primary transition-colors">
+                            <Settings className="w-5 h-5" />
+                        </Button>
+
                         <Button variant="ghost" size="icon" onClick={clearChat} className="rounded-xl text-muted-foreground hover:text-destructive transition-colors">
                             <Trash2 className="w-5 h-5" />
                         </Button>
                     </div>
                 </header>
+
+                <AnimatePresence>
+                    {isSettingsOpen && <AgentSettings onClose={() => setIsSettingsOpen(false)} />}
+                </AnimatePresence>
 
                 <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar pb-32">
                     {messages.length === 0 ? (
@@ -531,7 +569,9 @@ export default function FormAgent() {
                                                                     const msgIndex = messages.findIndex(m => m.id === msg.id);
                                                                     const lastUserMsg = messages.slice(0, msgIndex).reverse().find(m => m.role === "user");
                                                                     if (lastUserMsg) {
-                                                                        sendMessage(lastUserMsg.text);
+                                                                        // Remove the current assistant message from UI
+                                                                        setMessages(prev => prev.slice(0, msgIndex));
+                                                                        sendMessage(lastUserMsg.text, true);
                                                                     }
                                                                 }}
                                                             >
