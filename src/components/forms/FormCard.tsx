@@ -3,9 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Pencil, Link2, BarChart3, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, Link2, BarChart3, Trash2, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
+import { base44 } from "@/api/foreform";
+import { useQuery } from "@tanstack/react-query";
 
 const statusConfig = {
   draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
@@ -15,6 +17,18 @@ const statusConfig = {
 
 export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) {
   const config = statusConfig[form.status] || statusConfig.draft;
+
+  const { data: sections = [] } = useQuery({
+    queryKey: ["sections", form.id],
+    queryFn: () => base44.entities.FormSection.list(form.id),
+    enabled: !!form.id,
+    staleTime: 60000,
+  });
+
+  const flatQuestionCount = form.questions?.length || 0;
+  const sectionQuestionCount = sections.reduce((sum, s) => sum + (s.questions?.length || 0), 0);
+  const totalQuestions = flatQuestionCount + sectionQuestionCount;
+  const sectionCount = sections.length;
 
   if (view === "grid") {
     return (
@@ -60,7 +74,12 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
 
           <div className="flex flex-col gap-3 pt-4 border-t border-border/40">
             <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <span>{form.questions?.length || 0} Questions</span>
+              <div className="flex items-center gap-2">
+                <span>{totalQuestions} Questions</span>
+                {sectionCount > 0 && (
+                  <span className="flex items-center gap-0.5 text-primary/70"><Layers className="w-3 h-3" />{sectionCount} Sections</span>
+                )}
+              </div>
               <span className="text-rose-500">{form.response_count || 0} Responses</span>
             </div>
             <span className="text-[11px] text-muted-foreground/70">
@@ -91,7 +110,10 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
               <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{form.description}</p>
             )}
             <div className="flex items-center gap-4 mt-3 text-sm font-medium">
-              <span className="text-primary/80">{form.questions?.length || 0} questions</span>
+              <span className="text-primary/80">{totalQuestions} questions</span>
+              {sectionCount > 0 && (
+                <span className="text-primary/60 flex items-center gap-1"><Layers className="w-3.5 h-3.5" />{sectionCount} sections</span>
+              )}
               <span className="text-rose-500/80">{form.response_count || 0} responses</span>
             </div>
           </div>

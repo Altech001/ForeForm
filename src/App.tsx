@@ -25,6 +25,7 @@ import MeritePlans from './pages/MeriteBills/Plans';
 import MeritePlanDetails from './pages/MeriteBills/PlanDetails';
 import MeriteTransactions from './pages/MeriteBills/Transactions';
 import MeriteUsers from './pages/MeriteBills/Users';
+import AgentPage from './pages/agent';
 import { Navigate, Outlet } from 'react-router-dom';
 
 // Protected Route wrapper component
@@ -101,6 +102,7 @@ const AuthenticatedApp = () => {
           <Route path="/plans/:id" element={<MeritePlanDetails />} />
           <Route path="/transactions" element={<MeriteTransactions />} />
           <Route path="/users" element={<MeriteUsers />} />
+          <Route path="/agent" element={<AgentPage />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />

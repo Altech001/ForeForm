@@ -298,19 +298,19 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
             {/* QUESTION / SECTION */}
             {typeof step === "number" && (currentQuestion || currentSection) && (
-              <motion.div key={`step-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card border border-border rounded-xl p-6 sm:p-10 shadow-sm space-y-8" onKeyDown={handleKeyDown}>
+              <motion.div key={`step-${step}`} custom={direction} variants={variants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }} className="bg-card rounded-none p-6 sm:p-10 shadow-sm space-y-8" onKeyDown={handleKeyDown}>
 
                 {hasSections && currentSection ? (
                   <div className="space-y-8">
-                    <div className="space-y-1.5 border-b pb-4 border-border/60">
-                      <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Section {step + 1} of {sections.length}</p>
-                      <h2 className="text-2xl font-bold">{currentSection.title}</h2>
+                    <div className="space-y-1 pb-4">
+                      <p className="text-[12px] font-bold text-primary">Section {step + 1} of {sections.length}</p>
+                      <h2 className="text-xl font-bold">{currentSection.title}</h2>
                       {currentSection.description && <p className="text-sm text-muted-foreground">{currentSection.description}</p>}
                     </div>
 
                     <div className="space-y-10">
                       {(currentSection.questions || []).map((q, idx) => (
-                        <div key={q.id} className="space-y-4">
+                        <div key={q.id} className="space-y-2">
                           <QuestionRenderer
                             question={q}
                             value={answers[q.id]}
@@ -340,7 +340,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
                 <div className="flex items-center justify-between pt-6 border-t border-border/50">
                   <Button variant="ghost" onClick={goBack} className="gap-1.5"><ArrowLeft className="w-4 h-4" /> Back</Button>
-                  <Button onClick={goNext} disabled={submitMutation.isPending} className="gap-2 px-8 py-6 text-base rounded shadow-lg shadow-primary/20">
+                  <Button onClick={goNext} disabled={submitMutation.isPending} className="gap-2 px-8 py-6 text-base">
                     {(hasSections ? isLastSection : isLastQuestion) && !branding.require_signature ? (
                       submitMutation.isPending ? <><Loader2 className="w-4 h-4 animate-spin" />Submitting…</> : <><Send className="w-4 h-4" />Submit Response</>
                     ) : (
