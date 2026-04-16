@@ -5,7 +5,7 @@ from config import settings
 from db import engine, Base
 
 # Import all models so SQLAlchemy registers them before create_all
-from models import User, Form, FormResponse, FormShare, Task, TaskActivity  # noqa: F401
+from models import User, Form, FormResponse, FormShare, Task, TaskActivity, AgentSession, ApiKey  # noqa: F401
 
 # Import routers
 from routers.auth import router as auth_router
@@ -17,6 +17,7 @@ from routers.ai import router as ai_router
 from routers.tasks import router as tasks_router
 from routers.files_better import router as documents_router
 from routers.sect_form import router as sections_router
+from routers.foreform_agents import router as agent_router
 
 # ── Create tables ────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
@@ -58,6 +59,7 @@ app.include_router(ai_router)
 app.include_router(tasks_router)
 app.include_router(documents_router)
 app.include_router(sections_router)
+app.include_router(agent_router)
 
 
 # ── Health check ─────────────────────────────────────────────
