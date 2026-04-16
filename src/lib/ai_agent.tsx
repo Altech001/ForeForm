@@ -5,9 +5,38 @@
  * for form building, survey generation, and document creation.
  */
 
-const GEMINI_API_KEY = "AIzaSyC_K6gypZtwpCXTKMyWN55NWk01qaDXENA";
+import { base44 } from "@/api/foreform";
+
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+
+/**
+ * Resolve the best Gemini API key to use.
+ * Priority: localStorage → backend (own key → shared key) → session cache
+ */
+async function resolveApiKey(): Promise<string> {
+    // 1. Check localStorage first (fastest)
+    const localKey = localStorage.getItem("foreform_api_key");
+    if (localKey) return localKey;
+
+    // 2. Try backend resolution (user's own key or shared key)
+    try {
+        const resolved = await base44.entities.ApiKey.resolve("gemini");
+        if (resolved?.api_key) {
+            // Cache for this session to avoid repeated calls
+            sessionStorage.setItem("_resolved_gemini_key", resolved.api_key);
+            return resolved.api_key;
+        }
+    } catch {
+        // Backend unavailable — fall through
+    }
+
+    // 3. Check session cache
+    const cached = sessionStorage.getItem("_resolved_gemini_key");
+    if (cached) return cached;
+
+    throw new Error("No API key configured. Please add your Gemini API key in Settings → API Keys.");
+}
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -451,8 +480,7 @@ export class ForeFormAgent {
     // ─── Gemini API Call ─────────────────────────────────────────
 
     private async callGemini(useSearch: boolean = false, modelOverride?: string): Promise<any> {
-        const localKey = localStorage.getItem("foreform_api_key");
-        const key = localKey || GEMINI_API_KEY;
+        const key = await resolveApiKey();
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelOverride || GEMINI_MODEL}:generateContent?key=${key}`;
 
         const body: any = {
@@ -495,14 +523,23 @@ export class ForeFormAgent {
         }
 
         if (useSearch) {
-            tools.push({
-                google_search_retrieval: {
-                    dynamic_retrieval_config: {
-                        mode: "unspecified",
-                        dynamic_threshold: 0.06
+            const model = modelOverride || GEMINI_MODEL;
+            const isNewerModel = model.includes("gemini-2") || model.includes("gemini-3");
+
+            if (isNewerModel) {
+                // Gemini 2.0+ uses simplified google_search tool
+                tools.push({ google_search: {} });
+            } else {
+                // Gemini 1.5 uses google_search_retrieval with MODE_DYNAMIC
+                tools.push({
+                    google_search_retrieval: {
+                        dynamic_retrieval_config: {
+                            mode: "MODE_DYNAMIC",
+                            dynamic_threshold: 0.3
+                        }
                     }
-                }
-            });
+                });
+            }
         }
 
         if (tools.length > 0) {
@@ -670,7 +707,9 @@ export async function quickPrompt(
         },
     };
 
-    const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+    const key = await resolveApiKey();
+
+    const res = await fetch(`${GEMINI_URL}?key=${key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

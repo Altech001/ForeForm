@@ -7,6 +7,13 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
 import AgentSettings from "./agent_settings";
 import { Input } from "@/components/ui/input";
 import type { AgentResponse } from "@/lib/ai_agent";
@@ -19,14 +26,17 @@ import {
     ChevronDown,
     Copy,
     Download,
-    File,
+    File as FileIcon,
     FileText,
     Globe,
+    History,
+    Image as ImageIcon,
     Layers,
     LayoutGrid,
     Lightbulb,
     Loader2,
     LucideChevronsLeft,
+    MessageSquare,
     Paperclip,
     Plus,
     Rocket,
@@ -35,6 +45,7 @@ import {
     Settings,
     Share2,
     Sparkles,
+    Table,
     ThumbsDown,
     ThumbsUp,
     Trash2,
@@ -47,6 +58,7 @@ import ReactMarkdown from "react-markdown";
 import { useNavigate } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
+import { renderAsync } from "docx-preview";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -57,6 +69,7 @@ interface ChatMessage {
     toolCalls?: { name: string; args: Record<string, any> }[];
     toolResults?: any;
     artifacts?: ChatArtifact[];
+    attachments?: FileAttachment[];
     timestamp: Date;
     isStreaming?: boolean;
 }
@@ -65,6 +78,13 @@ interface ChatArtifact {
     type: "questions" | "sections" | "form_created" | "code";
     title: string;
     data: any;
+}
+
+interface FileAttachment {
+    name: string;
+    type: string;
+    size: number;
+    preview?: string; // data URL for images
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -87,6 +107,47 @@ const QUICK_PROMPTS = [
     { icon: "🏥", text: "Generate a patient intake questionnaire" },
 ];
 
+// ─── File helpers ────────────────────────────────────────────────
+
+const ACCEPTED_FILE_TYPES = "image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.json,.md";
+
+function getFileIcon(file: File) {
+    const t = file.type;
+    const n = file.name.toLowerCase();
+    if (t.startsWith("image/")) return <ImageIcon className="w-4 h-4 text-pink-500" />;
+    if (n.endsWith(".pdf")) return <FileText className="w-4 h-4 text-red-500" />;
+    if (n.endsWith(".docx") || n.endsWith(".doc")) return <FileText className="w-4 h-4 text-blue-500" />;
+    if (n.endsWith(".xlsx") || n.endsWith(".xls") || n.endsWith(".csv")) return <Table className="w-4 h-4 text-emerald-500" />;
+    return <FileIcon className="w-4 h-4 text-muted-foreground" />;
+}
+
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function DocxPreview({ file }: { file: File }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [error, setError] = useState(false);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const el = containerRef.current;
+        file.arrayBuffer()
+            .then(buf => renderAsync(buf, el, undefined, {
+                className: "docx-preview-container",
+                inWrapper: true,
+                ignoreWidth: true,
+                ignoreHeight: true,
+            }))
+            .catch(() => setError(true));
+    }, [file]);
+
+    if (error) return <p className="text-xs text-muted-foreground italic p-2">Cannot preview this document</p>;
+    return <div ref={containerRef} className="max-h-[60vh] overflow-auto rounded border border-border/30 bg-white text-[10px] [&_.docx-wrapper]:!bg-white [&_.docx-wrapper]:p-2" />;
+}
+
 // ─── Main Component ──────────────────────────────────────────────
 
 export default function FormAgent() {
@@ -100,10 +161,17 @@ export default function FormAgent() {
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const [filePreviews, setFilePreviews] = useState<Map<string, string>>(new Map());
+    const [previewDocxFile, setPreviewDocxFile] = useState<File | null>(null);
     const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
-    const [selectedModel, setSelectedModel] = useState("fast"); // UI label: auto, fast, expert, heavy
+    const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem("foreform_default_model") || "fast");
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionList, setSessionList] = useState<any[]>([]);
+    const [isLoadingSessions, setIsLoadingSessions] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const autoSaveEnabled = localStorage.getItem("foreform_auto_save_chats") !== "false";
 
     const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -121,11 +189,27 @@ export default function FormAgent() {
         if (e.target.files) {
             const files = Array.from(e.target.files);
             setSelectedFiles(prev => [...prev, ...files]);
+            // Generate image previews
+            files.forEach(file => {
+                if (file.type.startsWith("image/")) {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        setFilePreviews(prev => new Map(prev).set(file.name + file.size, reader.result as string));
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
         }
     };
 
     const removeFile = (index: number) => {
-        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+        setSelectedFiles(prev => {
+            const removed = prev[index];
+            if (removed) {
+                setFilePreviews(p => { const n = new Map(p); n.delete(removed.name + removed.size); return n; });
+            }
+            return prev.filter((_, i) => i !== index);
+        });
     };
 
     // Auto-scroll
@@ -134,6 +218,94 @@ export default function FormAgent() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages]);
+
+    // Load session history on mount
+    useEffect(() => {
+        loadSessionList();
+    }, []);
+
+    const loadSessionList = async () => {
+        setIsLoadingSessions(true);
+        try {
+            const sessions = await base44.entities.AgentSession.list();
+            setSessionList(sessions);
+        } catch {
+            // Backend may not be ready
+        } finally {
+            setIsLoadingSessions(false);
+        }
+    };
+
+    const loadSession = async (id: string) => {
+        try {
+            const session = await base44.entities.AgentSession.get(id);
+            if (session?.messages) {
+                const restoredMsgs: ChatMessage[] = session.messages.map((m: any) => ({
+                    id: m.id || uid(),
+                    role: m.role,
+                    text: m.text || "",
+                    toolCalls: m.toolCalls,
+                    artifacts: m.artifacts,
+                    timestamp: new Date(m.timestamp),
+                    isStreaming: false,
+                }));
+                setMessages(restoredMsgs);
+                setSessionId(session.id);
+                agent.current.clearHistory();
+                setShowHistory(false);
+                toast.success(`Loaded: ${session.title}`);
+            }
+        } catch {
+            toast.error("Failed to load session");
+        }
+    };
+
+    const saveSession = async (chatMessages: ChatMessage[]) => {
+        if (!autoSaveEnabled || chatMessages.length === 0) return;
+        const serialized = chatMessages.map(m => ({
+            id: m.id,
+            role: m.role,
+            text: m.text,
+            toolCalls: m.toolCalls,
+            artifacts: m.artifacts,
+            timestamp: m.timestamp.toISOString(),
+        }));
+        const title = chatMessages.find(m => m.role === "user")?.text?.slice(0, 60) || "Untitled Chat";
+        try {
+            if (sessionId) {
+                await base44.entities.AgentSession.update(sessionId, {
+                    messages: serialized,
+                    artifacts: chatMessages.flatMap(m => m.artifacts || []),
+                    model_used: selectedModel,
+                });
+            } else {
+                const created = await base44.entities.AgentSession.create({
+                    title,
+                    messages: serialized,
+                    artifacts: chatMessages.flatMap(m => m.artifacts || []),
+                    model_used: selectedModel,
+                });
+                setSessionId(created.id);
+            }
+        } catch {
+            // Silently fail — don't interrupt the UX
+        }
+    };
+
+    const deleteSession = async (id: string) => {
+        try {
+            await base44.entities.AgentSession.delete(id);
+            if (sessionId === id) {
+                setSessionId(null);
+                setMessages([]);
+                agent.current.clearHistory();
+            }
+            await loadSessionList();
+            toast.success("Session deleted");
+        } catch {
+            toast.error("Failed to delete session");
+        }
+    };
 
     // ─── Send Message ────────────────────────────────────────────
 
@@ -149,9 +321,18 @@ export default function FormAgent() {
             setSelectedFiles([]);
 
             const userMessage: ChatMessage = {
-                id: uid(), role: "user", text: msg || (filesToProcess.length > 0 ? "Analyzed files" : ""), timestamp: new Date(),
+                id: uid(), role: "user",
+                text: msg || (filesToProcess.length > 0 ? `Analyzing ${filesToProcess.length} file(s)` : ""),
+                attachments: filesToProcess.map(f => ({
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    preview: filePreviews.get(f.name + f.size),
+                })),
+                timestamp: new Date(),
             };
             setMessages(prev => [...prev, userMessage]);
+            setFilePreviews(new Map()); // clear previews after sending
         } else {
             // Remove the last turn from agent history to allow re-chatting the same prompt
             agent.current.popHistory(2);
@@ -200,15 +381,20 @@ export default function FormAgent() {
                 } catch { /* ignore parsing errors */ }
             }
 
-            setMessages(prev => prev.map(m =>
-                m.id === loadingId ? {
-                    ...m,
-                    text: response.text,
-                    toolCalls: response.functionCalls,
-                    artifacts,
-                    isStreaming: false,
-                } : m
-            ));
+            setMessages(prev => {
+                const updated = prev.map(m =>
+                    m.id === loadingId ? {
+                        ...m,
+                        text: response.text,
+                        toolCalls: response.functionCalls,
+                        artifacts,
+                        isStreaming: false,
+                    } : m
+                );
+                // Auto-save to backend
+                saveSession(updated);
+                return updated;
+            });
         } catch (err: any) {
             const isQuotaError = err.message?.includes("429");
             const isSecurityError = err.message?.includes("403") || err.message?.includes("leaked");
@@ -304,7 +490,15 @@ export default function FormAgent() {
     const clearChat = () => {
         agent.current.clearHistory();
         setMessages([]);
+        setSessionId(null);
         toast("Chat cleared");
+    };
+
+    const startNewChat = () => {
+        agent.current.clearHistory();
+        setMessages([]);
+        setSessionId(null);
+        loadSessionList();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -319,10 +513,21 @@ export default function FormAgent() {
             {/* Background Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[40%] bg-primary/5 blur-[120px] pointer-events-none rounded-full" />
 
-            {/* Sidebar (Optional/Thin) */}
-            <aside className="w-16 border-r border-border/40 flex flex-col items-center py-6 gap-6 z-10 bg-card/30 backdrop-blur-xl">
+            {/* Sidebar */}
+            <aside className="w-16 border-r border-border/40 flex flex-col items-center py-6 gap-4 z-10 bg-card/30 backdrop-blur-xl">
                 <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
                     <LucideChevronsLeft className="w-10 h-10 text-muted-foreground" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={startNewChat} className="rounded-xl text-muted-foreground hover:text-primary transition-colors" title="New chat">
+                    <Plus className="w-5 h-5" />
+                </Button>
+                <Button
+                    variant="ghost" size="icon"
+                    onClick={() => { setShowHistory(!showHistory); if (!showHistory) loadSessionList(); }}
+                    className={`rounded-xl transition-colors ${showHistory ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"}`}
+                    title="Chat history"
+                >
+                    <History className="w-5 h-5" />
                 </Button>
 
                 <div className="flex-1" />
@@ -333,6 +538,65 @@ export default function FormAgent() {
                     <Trash2 className="w-5 h-5" />
                 </Button>
             </aside>
+
+            {/* Chat History Panel */}
+            <AnimatePresence>
+                {showHistory && (
+                    <motion.aside
+                        initial={{ width: 0, opacity: 0 }}
+                        animate={{ width: 280, opacity: 1 }}
+                        exit={{ width: 0, opacity: 0 }}
+                        className="border-r border-border/40 bg-card/50 backdrop-blur-xl z-10 overflow-hidden flex flex-col"
+                    >
+                        <div className="p-4 border-b border-border/30">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-bold">Chat History</h3>
+                                <button onClick={() => setShowHistory(false)} className="text-muted-foreground hover:text-foreground">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <Button onClick={startNewChat} variant="outline" size="sm" className="w-full rounded text-xs font-bold gap-2">
+                                <Plus className="w-3.5 h-3.5" /> New Chat
+                            </Button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
+                            {isLoadingSessions ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                                </div>
+                            ) : sessionList.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+                                    <p className="text-xs text-muted-foreground">No saved chats yet</p>
+                                </div>
+                            ) : (
+                                sessionList.map((s) => (
+                                    <div
+                                        key={s.id}
+                                        className={`group flex items-center gap-2 p-3 rounded cursor-pointer transition-all text-left ${sessionId === s.id
+                                            ? "bg-primary/10 border border-primary/20"
+                                            : "hover:bg-muted/50 border border-transparent"
+                                            }`}
+                                    >
+                                        <button onClick={() => loadSession(s.id)} className="flex-1 min-w-0 text-left">
+                                            <p className="text-xs font-bold truncate text-foreground">{s.title}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                {s.message_count || 0} msgs · {new Date(s.updated_at).toLocaleDateString()}
+                                            </p>
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
+                                            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all shrink-0"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </motion.aside>
+                )}
+            </AnimatePresence>
 
             {/* Chat Container */}
             <main className="flex-1 flex flex-col relative z-20">
@@ -409,8 +673,28 @@ export default function FormAgent() {
                                     >
                                         <div className={`flex-1 space-y-4 ${msg.role === "user" ? "max-w-[80%]" : ""}`}>
                                             {msg.role === "user" ? (
-                                                <div className="bg-primary/10 text-foreground px-5 py-3 rounded-2xl rounded-tr-sm text-base font-medium inline-block float-right">
-                                                    {msg.text}
+                                                <div className="float-right space-y-2 max-w-full">
+                                                    {/* Attached file previews in bubble */}
+                                                    {msg.attachments && msg.attachments.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1.5 justify-end">
+                                                            {msg.attachments.map((att, ai) =>
+                                                                att.preview ? (
+                                                                    <img key={ai} src={att.preview} alt={att.name} className="w-16 h-16 rounded object-cover border border-border/30" />
+                                                                ) : (
+                                                                    <div key={ai} className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-primary/5 border border-primary/10 text-[10px] font-medium text-muted-foreground">
+                                                                        <FileText className="w-3 h-3" />
+                                                                        <span className="truncate max-w-[80px]">{att.name}</span>
+                                                                        <span className="opacity-60">{formatFileSize(att.size)}</span>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    {msg.text && (
+                                                        <div className="bg-primary/10 text-foreground px-5 py-3 rounded-2xl rounded-tr-sm text-base font-medium inline-block float-right">
+                                                            {msg.text}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <div className="prose prose-sm prose-slate dark:prose-invert max-w-none">
@@ -595,22 +879,65 @@ export default function FormAgent() {
                         {/* Decorative Background for Input */}
                         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/20 to-primary/20 rounded opacity-0 group-focus-within:opacity-100 transition-opacity" />
 
-                        <div className="relative flex flex-col gap-2 p-3 bg-card border border-border/80 rounded  focus-within:border-primary/50 transition-all backdrop-blur-2xl">
-                            {/* File Previews */}
+                        <div className="flex flex-col gap-2 p-3 bg-card border border-border/80 rounded  focus-within:border-primary/50 transition-all backdrop-blur-2xl relative">
+                            {/* File Previews — rich thumbnails */}
                             {selectedFiles.length > 0 && (
-                                <div className="flex flex-wrap gap-2 px-3 pt-2">
-                                    {selectedFiles.map((file, i) => (
-                                        <div key={i} className="flex items-center gap-2 bg-muted/50 border border-border/50 px-3 py-1.5 rounded group/file">
-                                            <File className="w-4 h-4 text-primary" />
-                                            <span className="text-xs font-medium truncate max-w-[120px]">{file.name}</span>
-                                            <button
-                                                onClick={() => removeFile(i)}
-                                                className="text-muted-foreground hover:text-destructive"
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-                                    ))}
+                                <div className="flex flex-wrap gap-2 px-1 pt-1">
+                                    {selectedFiles.map((file, i) => {
+                                        const imgPreview = filePreviews.get(file.name + file.size);
+                                        const isDocx = file.name.toLowerCase().endsWith(".docx") || file.name.toLowerCase().endsWith(".doc");
+                                        return (
+                                            <div key={i} className="group/file relative rounded overflow-hidden border border-border/50 bg-muted/30">
+                                                {imgPreview ? (
+                                                    /* Image thumbnail */
+                                                    <div className="relative w-20 h-20">
+                                                        <img src={imgPreview} alt={file.name} className="w-full h-full object-cover" />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover/file:bg-black/40 transition-colors" />
+                                                    </div>
+                                                ) : isDocx ? (
+                                                    /* Docx thumbnail triggering dialog */
+                                                    <div
+                                                        className="relative w-24 h-20 bg-white border border-border/50 rounded flex items-center justify-center cursor-pointer group/docx overflow-hidden"
+                                                        onClick={() => setPreviewDocxFile(file)}
+                                                    >
+                                                        <img src="/docx.png" alt="DOCX" className="max-w-[70%] max-h-[70%] object-contain" />
+                                                        <div className="absolute inset-0 bg-black/0 group-hover/docx:bg-black/10 transition-colors flex items-center justify-center">
+                                                            <div className="bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded opacity-0 group-hover/docx:opacity-100 transition-opacity translate-y-2 group-hover/docx:translate-y-0 relative z-10 pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis max-w-[90%]">
+                                                                Preview
+                                                            </div>
+                                                        </div>
+                                                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] truncate px-1 py-[2px] text-center font-medium backdrop-blur-sm z-0">
+                                                            {file.name}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    /* Generic file chip */
+                                                    <div className="flex items-center gap-2 px-3 py-2">
+                                                        {getFileIcon(file)}
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-medium truncate max-w-[100px]">{file.name}</p>
+                                                            <p className="text-[9px] text-muted-foreground">{formatFileSize(file.size)}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={() => removeFile(i)}
+                                                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-background/80 backdrop-blur flex items-center justify-center opacity-0 group-hover/file:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Web search active indicator */}
+                            {isWebSearchEnabled && (
+                                <div className="flex items-center gap-1.5 px-3">
+                                    <Badge variant="secondary" className="text-[9px] rounded px-2 py-0 h-5 gap-1 font-bold bg-transparent text-primary border-primary/20">
+                                        <Globe className="w-2.5 h-2.5" /> Web Search Active
+                                    </Badge>
                                 </div>
                             )}
 
@@ -619,7 +946,8 @@ export default function FormAgent() {
                                     type="file"
                                     ref={fileInputRef}
                                     onChange={handleFileChange}
-                                    className="hidden "
+                                    className="hidden"
+                                    accept={ACCEPTED_FILE_TYPES}
                                     multiple
                                 />
                                 <Button
@@ -627,6 +955,7 @@ export default function FormAgent() {
                                     size="icon"
                                     onClick={() => fileInputRef.current?.click()}
                                     className="rounded-full text-muted-foreground hover:bg-muted shrink-0"
+                                    title="Attach files (images, PDF, DOCX, CSV...)"
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </Button>
@@ -725,6 +1054,24 @@ export default function FormAgent() {
                         </p>
                     </div>
                 </div>
+
+                {/* Docx Preview Modal */}
+                <Dialog open={!!previewDocxFile} onOpenChange={(open) => !open && setPreviewDocxFile(null)}>
+                    <DialogContent className="max-w-4xl p-0 overflow-hidden  backdrop-blur-3xl shadow-2xl">
+                        <DialogHeader className="p-4 border-b border-border/40 bg-background flex flex-row items-center gap-3">
+                            <div className="p-1.5  rounded">
+                                <FileText className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-sm">{previewDocxFile?.name}</DialogTitle>
+                                <DialogDescription className="text-xs">Document Preview</DialogDescription>
+                            </div>
+                        </DialogHeader>
+                        <div className="p-4 relative">
+                            {previewDocxFile && <DocxPreview file={previewDocxFile} />}
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </main>
         </div>
     );

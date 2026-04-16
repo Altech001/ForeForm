@@ -132,6 +132,20 @@ export const base44 = {
             update: (id: string, data: any) => fetchApi(`/sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/sections/${id}`, { method: 'DELETE' }),
             reorder: (formId: string, sectionIds: string[]) => fetchApi(`/sections/form/${formId}/reorder`, { method: 'POST', body: JSON.stringify(sectionIds) })
+        },
+        AgentSession: {
+            list: () => fetchApi('/agent/sessions'),
+            get: (id: string) => fetchApi(`/agent/sessions/${id}`),
+            create: (data: any) => fetchApi('/agent/sessions', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/agent/sessions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/agent/sessions/${id}`, { method: 'DELETE' })
+        },
+        ApiKey: {
+            list: () => fetchApi('/agent/keys'),
+            create: (data: any) => fetchApi('/agent/keys', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/agent/keys/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/agent/keys/${id}`, { method: 'DELETE' }),
+            resolve: (provider: string) => fetchApi(`/agent/keys/resolve/${provider}`)
         }
     },
     integrations: {
