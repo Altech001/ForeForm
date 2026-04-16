@@ -9,6 +9,7 @@ import { base44 } from "@/api/foreform";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const CUSTOM_API_URL = "https://foreform.vercel.app/api/agent/chat/custom";
 
 /**
  * Resolve the best Gemini API key to use.
@@ -572,7 +573,7 @@ export class ForeFormAgent {
             config: this.config,
             history: this.history,
         };
-        const res = await fetch(`http://localhost:8000/api/agent/chat/custom`, {
+        const res = await fetch(CUSTOM_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -591,9 +592,7 @@ export class ForeFormAgent {
             candidates: [
                 {
                     content: {
-                        parts: [
-                            { text: data.text }
-                        ]
+                        parts: data.parts || [{ text: data.text || "" }]
                     }
                 }
             ]
