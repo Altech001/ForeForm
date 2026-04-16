@@ -356,7 +356,10 @@ export default function FormAgent() {
             const response: AgentResponse = await agent.current.chat(msg, {
                 files: processedFiles,
                 search: isWebSearchEnabled,
-                model: selectedModel === "expert" || selectedModel === "heavy" ? "gemini-3-pro-preview" : "gemini-flash-latest"
+                model: selectedModel === "expert" || selectedModel === "heavy" ? "gemini-3-pro-preview" :
+                    selectedModel === "groq" ? "groq" :
+                        selectedModel === "cerebras" ? "cerebras" :
+                            "gemini-flash-latest"
             });
             const artifacts: ChatArtifact[] = [];
             let questions: any[] = [];
@@ -1005,7 +1008,9 @@ export default function FormAgent() {
                                             { id: "auto", name: "Auto", desc: "Chooses Fast or Expert", icon: Rocket, color: "text-purple-500", bg: "bg-purple-500/10" },
                                             { id: "fast", name: "Fast", desc: "Quick responses - 1.5 Flash", icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10" },
                                             { id: "expert", name: "Expert", desc: "Thinks hard - 1.5 Pro", icon: Lightbulb, color: "text-primary", bg: "bg-primary/10" },
-                                            { id: "heavy", name: "Heavy", desc: "Powered by 1.5 Pro", icon: LayoutGrid, color: "text-rose-500", bg: "bg-rose-500/10" }
+                                            { id: "heavy", name: "Heavy", desc: "Powered by 1.5 Pro", icon: LayoutGrid, color: "text-rose-500", bg: "bg-rose-500/10" },
+                                            { id: "groq", name: "Groq", desc: "Ultrafast Open Source", icon: Zap, color: "text-red-500", bg: "bg-red-500/10" },
+                                            { id: "cerebras", name: "Cerebras", desc: "CS-3 Powered Llama", icon: Rocket, color: "text-orange-500", bg: "bg-orange-500/10" }
                                         ].map((m) => (
                                             <DropdownMenuItem
                                                 key={m.id}

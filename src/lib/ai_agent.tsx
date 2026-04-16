@@ -480,6 +480,10 @@ export class ForeFormAgent {
     // ─── Gemini API Call ─────────────────────────────────────────
 
     private async callGemini(useSearch: boolean = false, modelOverride?: string): Promise<any> {
+        if (modelOverride === "groq" || modelOverride === "cerebras") {
+            return await this.callCustomAPI(modelOverride);
+        }
+
         const key = await resolveApiKey();
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelOverride || GEMINI_MODEL}:generateContent?key=${key}`;
 
@@ -558,6 +562,42 @@ export class ForeFormAgent {
         }
 
         return await res.json();
+    }
+
+    // ─── Custom API Call (Groq / Cerebras) ───────────────────────
+
+    private async callCustomAPI(provider: "groq" | "cerebras"): Promise<any> {
+        const body = {
+            provider,
+            config: this.config,
+            history: this.history,
+        };
+        const res = await fetch(`http://localhost:8000/api/agent/chat/custom`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(localStorage.getItem("foreform_token") ? { "Authorization": `Bearer ${localStorage.getItem("foreform_token")}` } : {})
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(`${provider} API error ${res.status}: ${JSON.stringify(err)}`);
+        }
+
+        const data = await res.json();
+        return {
+            candidates: [
+                {
+                    content: {
+                        parts: [
+                            { text: data.text }
+                        ]
+                    }
+                }
+            ]
+        };
     }
 
     // ─── Tool Execution ──────────────────────────────────────────

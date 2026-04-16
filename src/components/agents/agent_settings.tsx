@@ -40,6 +40,8 @@ const PROVIDERS = [
     { id: "openai", label: "OpenAI", icon: "◎", color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { id: "anthropic", label: "Anthropic (Claude)", icon: "◈", color: "text-orange-500", bg: "bg-orange-500/10" },
     { id: "deepseek", label: "DeepSeek", icon: "◇", color: "text-purple-500", bg: "bg-purple-500/10" },
+    { id: "groq", label: "Groq", icon: "⚡", color: "text-red-500", bg: "bg-red-500/10" },
+    { id: "cerebras", label: "Cerebras", icon: "🚀", color: "text-orange-500", bg: "bg-orange-500/10" },
 ];
 
 export default function AgentSettings({ onClose }: AgentSettingsProps) {
@@ -256,6 +258,8 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                                     { id: "fast", label: "Fast", desc: "Quick & light" },
                                                     { id: "expert", label: "Expert", desc: "Deep thinking" },
                                                     { id: "heavy", label: "Heavy", desc: "Max power" },
+                                                    { id: "groq", label: "Groq", desc: "Ultrafast" },
+                                                    { id: "cerebras", label: "Cerebras", desc: "CS-3 Powered" },
                                                 ].map(m => (
                                                     <button
                                                         key={m.id}
