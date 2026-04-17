@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Clock, Calendar, CheckCircle2, Circle, Paperclip, MessageSquare, Activity as ActivityIcon, Send, User, Plus } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, CheckCircle2, Circle, Paperclip, MessageSquare, Activity as ActivityIcon, Send, User, Plus, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Task, Comment } from "./CreatTasksPanel";
 import { base44 } from "@/api/foreform";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
 export default function ViewTask() {
     const { taskId } = useParams();
@@ -39,8 +40,29 @@ export default function ViewTask() {
         }
     });
 
+    const addAssigneesMut = useMutation({
+        mutationFn: ({ id, emails }: { id: string, emails: string[] }) => base44.entities.Task.addAssignees(id, emails),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            toast.success("Assignee(s) added!");
+        }
+    });
+
+    const removeAssigneeMut = useMutation({
+        mutationFn: ({ id, emails }: { id: string, emails: string[] }) => base44.entities.Task.removeAssignees(id, emails),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['tasks', taskId] });
+            queryClient.invalidateQueries({ queryKey: ['tasks'] });
+            toast.success("Assignee removed");
+        }
+    });
+
     const [newComment, setNewComment] = useState("");
     const [isUploading, setIsUploading] = useState(false);
+    const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+    const [newAssigneeEmail, setNewAssigneeEmail] = useState("");
+    const [pendingEmails, setPendingEmails] = useState<string[]>([]);
 
     if (isLoading || !task) {
         return (
@@ -53,6 +75,15 @@ export default function ViewTask() {
             </div>
         );
     }
+
+    // Gather all assignee emails from the response
+    const assigneeEmails: string[] = task.assignee_emails && task.assignee_emails.length > 0
+        ? task.assignee_emails
+        : (task.assignees && task.assignees.length > 0)
+            ? task.assignees.map(a => a.email)
+            : (task.assignee_email || task.assigneeEmail)
+                ? [task.assignee_email || task.assigneeEmail!]
+                : [];
 
     const toggleStatus = () => {
         const newStatus = task.status === "done" ? "todo" : "done";
@@ -84,6 +115,31 @@ export default function ViewTask() {
         setIsUploading(false);
     };
 
+    const handleAddPendingEmail = () => {
+        const email = newAssigneeEmail.trim().toLowerCase();
+        if (email && email.includes("@") && !pendingEmails.includes(email) && !assigneeEmails.includes(email)) {
+            setPendingEmails([...pendingEmails, email]);
+            setNewAssigneeEmail("");
+        }
+    };
+
+    const handleRemovePendingEmail = (email: string) => {
+        setPendingEmails(pendingEmails.filter(e => e !== email));
+    };
+
+    const handleConfirmAssignees = () => {
+        if (pendingEmails.length > 0) {
+            addAssigneesMut.mutate({ id: task.id, emails: pendingEmails });
+        }
+        setPendingEmails([]);
+        setNewAssigneeEmail("");
+        setAssignDialogOpen(false);
+    };
+
+    const handleRemoveAssignee = (email: string) => {
+        removeAssigneeMut.mutate({ id: task.id, emails: [email] });
+    };
+
     return (
         <div className="min-h-screen bg-background overflow-x-hidden w-full relative">
             {/* Header */}
@@ -100,6 +156,84 @@ export default function ViewTask() {
                     </Button>
                 </div>
             </header>
+
+            {/* Add Assignee Dialog */}
+            <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Users className="w-5 h-5 text-primary" />
+                            Add Assignees
+                        </DialogTitle>
+                        <DialogDescription>
+                            Add one or more people to this task. Press Enter or click + to add each email.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-4">
+                        {/* Pending emails chips */}
+                        {pendingEmails.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {pendingEmails.map((email) => (
+                                    <Badge
+                                        key={email}
+                                        variant="secondary"
+                                        className="pl-2 pr-1 py-1.5 gap-1.5 bg-primary/10 text-primary border-none text-xs font-medium"
+                                    >
+                                        <User className="w-3 h-3" />
+                                        <span className="truncate max-w-[180px]">{email}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemovePendingEmail(email)}
+                                            className="ml-0.5 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Input
+                                type="email"
+                                value={newAssigneeEmail}
+                                onChange={(e) => setNewAssigneeEmail(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === ",") {
+                                        e.preventDefault();
+                                        handleAddPendingEmail();
+                                    }
+                                }}
+                                placeholder="teammate@example.com"
+                                className="flex-1"
+                                autoFocus
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={handleAddPendingEmail}
+                                disabled={!newAssigneeEmail.trim() || !newAssigneeEmail.includes("@")}
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                            Press Enter or comma to add multiple people
+                        </p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setAssignDialogOpen(false); setPendingEmails([]); setNewAssigneeEmail(""); }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleConfirmAssignees} disabled={pendingEmails.length === 0}>
+                            {pendingEmails.length > 0 ? `Add ${pendingEmails.length} Assignee${pendingEmails.length > 1 ? 's' : ''}` : 'Add Assignee'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full">
                 <div className="grid grid-cols-1 md:grid-cols-3 md:gap-8 gap-6 w-full">
@@ -221,32 +355,48 @@ export default function ViewTask() {
                     <div className="space-y-6 min-w-0 w-full max-w-full">
                         <Card className="rounded-none shadow-none border-primary/50 bg-primary/5 max-w-full overflow-hidden">
                             <CardHeader className="py-4 pb-2 border-b border-border/40">
-                                <CardTitle className="text-xs text-primary font-semibold truncate">
+                                <CardTitle className="text-xs text-primary font-semibold truncate flex items-center gap-2">
+                                    <Users className="w-4 h-4" />
                                     People Assigned
+                                    {assigneeEmails.length > 0 && (
+                                        <Badge variant="secondary" className="bg-primary/20 text-primary border-none text-[10px] px-1.5 py-0">
+                                            {assigneeEmails.length}
+                                        </Badge>
+                                    )}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="py-4 space-y-3 p-4">
-                                {task.assignee_email || task.assigneeEmail ? (
-                                    <div className="flex items-center gap-3 relative group w-full overflow-hidden">
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                            <User className="w-4 h-4" />
-                                        </div>
-                                        <div className="overflow-hidden flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">Primary Assignee</p>
-                                            <p className="text-xs text-primary truncate max-w-full block" title={task.assignee_email || task.assigneeEmail}>{task.assignee_email || task.assigneeEmail}</p>
-                                        </div>
+                                {assigneeEmails.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {assigneeEmails.map((email) => (
+                                            <div key={email} className="flex items-center gap-3 relative group w-full overflow-hidden">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-xs font-bold uppercase">
+                                                    {email.charAt(0)}
+                                                </div>
+                                                <div className="overflow-hidden flex-1 min-w-0">
+                                                    <p className="text-xs text-primary truncate max-w-full block" title={email}>{email}</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveAssignee(email)}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded-full shrink-0"
+                                                    title="Remove assignee"
+                                                >
+                                                    <X className="w-3.5 h-3.5 text-destructive" />
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
                                 ) : (
                                     <p className="text-sm text-primary break-words">Unassigned</p>
                                 )}
 
-                                <Button variant="outline" size="sm" className="w-full mt-2 border-dashed border-primary text-primary shadow-none whitespace-nowrap" onClick={() => {
-                                    const email = window.prompt("Enter teammate's email to assign:");
-                                    if (email && email.trim() !== '') {
-                                        updateTaskMut.mutate({ id: task.id, data: { assignee_email: email.trim() } });
-                                        toast.success("Assigned successfully!");
-                                    }
-                                }}>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full mt-2 border-dashed border-primary text-primary shadow-none whitespace-nowrap"
+                                    onClick={() => setAssignDialogOpen(true)}
+                                >
                                     <Plus className="w-4 h-4 mr-2 shrink-0" /> Add Assignee
                                 </Button>
                             </CardContent>

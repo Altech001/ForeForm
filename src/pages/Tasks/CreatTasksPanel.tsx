@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, X, Plus, User } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export interface Comment {
     id: string;
@@ -20,6 +21,12 @@ export interface Activity {
     user: string;
     createdAt: string;
     created_at?: string;
+}
+
+export interface TaskAssignee {
+    id: string;
+    email: string;
+    assigned_at: string;
 }
 
 export interface Task {
@@ -40,13 +47,15 @@ export interface Task {
     reviewNote?: string;
     comments?: Comment[];
     activities?: Activity[];
-    assignees?: string[];
+    // Multi-assignee support
+    assignees?: TaskAssignee[];
+    assignee_emails?: string[];
 }
 
 interface CreateTasksPanelProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onSave: (task: Omit<Task, "id" | "createdAt">) => void;
+    onSave: (task: any) => void;
 }
 
 export default function CreateTasksPanel({ open, onOpenChange, onSave }: CreateTasksPanelProps) {
@@ -54,7 +63,27 @@ export default function CreateTasksPanel({ open, onOpenChange, onSave }: CreateT
     const [description, setDescription] = useState("");
     const [status, setStatus] = useState<"todo" | "in_progress" | "done">("todo");
     const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
-    const [assigneeEmail, setAssigneeEmail] = useState("");
+    const [assigneeEmails, setAssigneeEmails] = useState<string[]>([]);
+    const [currentEmail, setCurrentEmail] = useState("");
+
+    const addEmail = () => {
+        const email = currentEmail.trim().toLowerCase();
+        if (email && !assigneeEmails.includes(email) && email.includes("@")) {
+            setAssigneeEmails([...assigneeEmails, email]);
+            setCurrentEmail("");
+        }
+    };
+
+    const removeEmail = (email: string) => {
+        setAssigneeEmails(assigneeEmails.filter(e => e !== email));
+    };
+
+    const handleEmailKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            addEmail();
+        }
+    };
 
     const handleSave = () => {
         if (!title.trim()) return;
@@ -64,14 +93,15 @@ export default function CreateTasksPanel({ open, onOpenChange, onSave }: CreateT
             description,
             status,
             priority,
-            assigneeEmail: assigneeEmail.trim() || undefined,
+            assignee_emails: assigneeEmails.length > 0 ? assigneeEmails : undefined,
             dueDate: new Date(Date.now() + 86400000 * 7).toISOString(), // 7 days from now as default
         });
 
         // reset form
         setTitle("");
         setDescription("");
-        setAssigneeEmail("");
+        setAssigneeEmails([]);
+        setCurrentEmail("");
         setStatus("todo");
         setPriority("medium");
         onOpenChange(false);
@@ -111,15 +141,57 @@ export default function CreateTasksPanel({ open, onOpenChange, onSave }: CreateT
                     </div>
 
                     <div className="grid gap-2">
-                        <Label htmlFor="assignee" className="text-sm font-medium">Assign Collaborator (Optional)</Label>
-                        <Input
-                            id="assignee"
-                            type="email"
-                            value={assigneeEmail}
-                            onChange={(e) => setAssigneeEmail(e.target.value)}
-                            placeholder="collaborator@example.com"
-                            className="col-span-3 transition-all focus:ring-2 focus:ring-primary/20"
-                        />
+                        <Label htmlFor="assignees" className="text-sm font-medium">
+                            Assign Collaborators (Optional)
+                        </Label>
+
+                        {/* Email chips */}
+                        {assigneeEmails.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-1">
+                                {assigneeEmails.map((email) => (
+                                    <Badge
+                                        key={email}
+                                        variant="secondary"
+                                        className="pl-2 pr-1 py-1 gap-1 bg-primary/10 text-primary border-none text-xs font-medium"
+                                    >
+                                        <User className="w-3 h-3" />
+                                        <span className="truncate max-w-[160px]">{email}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeEmail(email)}
+                                            className="ml-0.5 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Input
+                                id="assignees"
+                                type="email"
+                                value={currentEmail}
+                                onChange={(e) => setCurrentEmail(e.target.value)}
+                                onKeyDown={handleEmailKeyDown}
+                                placeholder="collaborator@example.com"
+                                className="flex-1 transition-all focus:ring-2 focus:ring-primary/20"
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={addEmail}
+                                disabled={!currentEmail.trim() || !currentEmail.includes("@")}
+                                className="shrink-0"
+                            >
+                                <Plus className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                            Press Enter or comma to add multiple people
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

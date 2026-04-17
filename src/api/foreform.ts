@@ -117,7 +117,10 @@ export const base44 = {
             create: (data: any) => fetchApi('/tasks/', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => fetchApi(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/tasks/${id}`, { method: 'DELETE' }),
-            comment: (id: string, text: string) => fetchApi(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) })
+            comment: (id: string, text: string) => fetchApi(`/tasks/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
+            setAssignees: (id: string, emails: string[]) => fetchApi(`/tasks/${id}/assignees`, { method: 'PUT', body: JSON.stringify({ emails }) }),
+            addAssignees: (id: string, emails: string[]) => fetchApi(`/tasks/${id}/assignees/add`, { method: 'POST', body: JSON.stringify({ emails }) }),
+            removeAssignees: (id: string, emails: string[]) => fetchApi(`/tasks/${id}/assignees/remove`, { method: 'POST', body: JSON.stringify({ emails }) })
         },
         Document: {
             list: () => fetchApi('/documents/'),

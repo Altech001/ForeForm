@@ -52,17 +52,22 @@ export default function TasksIndex() {
     const [isUploading, setIsUploading] = useState(false);
 
     const handleCreateTask = (newTaskData: any) => {
-        const payload = {
+        const payload: any = {
             title: newTaskData.title,
             description: newTaskData.description,
             status: newTaskData.status,
             priority: newTaskData.priority,
-            assignee_email: newTaskData.assigneeEmail,
             due_date: newTaskData.dueDate,
         };
+        // Support multi-assignee
+        if (newTaskData.assignee_emails && newTaskData.assignee_emails.length > 0) {
+            payload.assignee_emails = newTaskData.assignee_emails;
+        } else if (newTaskData.assigneeEmail) {
+            payload.assignee_emails = [newTaskData.assigneeEmail];
+        }
         createTaskMut.mutate(payload);
-        if (newTaskData.assigneeEmail) {
-            toast.success(`Task assigned to ${newTaskData.assigneeEmail} via email.`);
+        if (payload.assignee_emails?.length) {
+            toast.success(`Task assigned to ${payload.assignee_emails.length} person(s).`);
         }
     };
 
@@ -236,12 +241,23 @@ export default function TasksIndex() {
                                             <Calendar className="w-3 h-3 mr-1" />
                                             {new Date(task.created_at || task.createdAt || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                                         </div>
-                                        {(task.assignee_email || task.assigneeEmail) && (
-                                            <div className="flex items-center text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md max-w-[120px] sm:max-w-[160px] truncate" title={task.assignee_email || task.assigneeEmail}>
-                                                <User className="w-3 h-3 mr-1 shrink-0" />
-                                                <span className="truncate">{task.assignee_email || task.assigneeEmail}</span>
-                                            </div>
-                                        )}
+                                        {/* Multi-assignee display */}
+                                        {(() => {
+                                            const emails = task.assignee_emails && task.assignee_emails.length > 0
+                                                ? task.assignee_emails
+                                                : (task.assignee_email || task.assigneeEmail)
+                                                    ? [task.assignee_email || task.assigneeEmail]
+                                                    : [];
+                                            if (emails.length === 0) return null;
+                                            return (
+                                                <div className="flex items-center text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md max-w-[160px] sm:max-w-[200px]" title={emails.join(', ')}>
+                                                    <User className="w-3 h-3 mr-1 shrink-0" />
+                                                    <span className="truncate">
+                                                        {emails.length === 1 ? emails[0] : `${emails.length} people`}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })()}
                                         {(task.attachment_url || task.attachmentUrl) && (
                                             <div
                                                 className="flex items-center text-xs text-blue-500 bg-blue-500/10 px-2 py-1 rounded-md truncate cursor-pointer hover:underline"
