@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import SEO from "@/components/SEO";
 import { base44 } from "@/api/foreform";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -261,6 +262,7 @@ export default function DocxPreview() {
 
     return (
         <div className="flex flex-col h-screen bg-transparent dark:bg-slate-950">
+            <SEO title="Word Export & Preview" path="/docx-preview" />
             {/* Header */}
             <header className="flex-shrink-0 bg-white dark:bg-slate-900 border-b px-4 lg:px-6 py-4 flex items-center justify-between shadow-sm z-20">
                 <div className="flex items-center gap-2 lg:gap-4">

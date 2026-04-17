@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import SEO from "@/components/SEO";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -123,6 +124,7 @@ export default function TasksIndex() {
 
     return (
         <div className="min-h-screen bg-background">
+            <SEO title="Bookmark Tasks" path="/bookmark-tasks" />
             <CreateTasksPanel
                 open={isCreateOpen}
                 onOpenChange={setIsCreateOpen}

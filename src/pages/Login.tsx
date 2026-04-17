@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import SEO from "@/components/SEO";
 import { useAuth } from '@/lib/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
 import { Loader2 } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function Login() {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50/0 p-4">
+            <SEO title="Log In" path="/login" />
             <div className="max-w-md w-full space-y-8 bg-white p-8 rounded shadow-sm border border-slate-100">
                 <div className="text-center">
                     <div className="mx-auto w-12 h-12 *:text-primary rounded-xl flex items-center justify-center mb-4">

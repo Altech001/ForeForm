@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/foreform";
+import SEO from "@/components/SEO";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -157,6 +158,7 @@ Return ONLY a JSON object with this EXACT structure:
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="AI Respondents Generator" path="/ai-respondents" />
       {/* Header */}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-3">

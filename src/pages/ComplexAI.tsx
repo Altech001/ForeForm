@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import SEO from "@/components/SEO";
 import { toast } from "sonner";
 import { base44 } from "@/api/foreform";
 
@@ -227,54 +228,60 @@ export default function ComplexAI() {
     /* ── Render ── */
     if (phase === "prompt") {
         return (
-            <PromptPhase
-                isDark={isDark}
-                navigate={navigate}
-                messages={messages}
-                inputVal={inputVal}
-                setInputVal={setInputVal}
-                isGenerating={isGenerating}
-                handleSend={handleSend}
-                messagesEndRef={messagesEndRef}
-                textareaRef={textareaRef}
-                autoResize={autoResize}
-                toggleTheme={() => setIsDark(!isDark)}
-                fileContext={fileContext}
-                setFileContext={setFileContext}
-                fileName={fileName}
-                setFileName={setFileName}
-            />
+            <>
+                <SEO title="AI Assistant" path="/complex-ai" />
+                <PromptPhase
+                    isDark={isDark}
+                    navigate={navigate}
+                    messages={messages}
+                    inputVal={inputVal}
+                    setInputVal={setInputVal}
+                    isGenerating={isGenerating}
+                    handleSend={handleSend}
+                    messagesEndRef={messagesEndRef}
+                    textareaRef={textareaRef}
+                    autoResize={autoResize}
+                    toggleTheme={() => setIsDark(!isDark)}
+                    fileContext={fileContext}
+                    setFileContext={setFileContext}
+                    fileName={fileName}
+                    setFileName={setFileName}
+                />
+            </>
         );
     }
 
     return (
-        <EditorPhase
-            isDark={isDark}
-            setPhase={setPhase}
-            setQuestions={setQuestions}
-            currentPrompt={currentPrompt}
-            setCurrentPrompt={setCurrentPrompt}
-            showPreview={showPreview}
-            setShowPreview={setShowPreview}
-            handlePublish={handlePublish}
-            refineVal={refineVal}
-            setRefineVal={setRefineVal}
-            isGenerating={isGenerating}
-            handleRefine={handleRefine}
-            file={file}
-            setFile={setFile}
-            fileInputRef={fileInputRef}
-            questions={questions}
-            reqCount={reqCount}
-            typeCounts={typeCounts}
-            onDragEnd={onDragEnd}
-            updateQ={updateQ}
-            deleteQ={deleteQ}
-            addOpt={addOpt}
-            updateOpt={updateOpt}
-            removeOpt={removeOpt}
-            addQuestion={addQuestion}
-            toggleTheme={() => setIsDark(!isDark)}
-        />
+        <>
+            <SEO title="AI Assistant" path="/complex-ai" />
+            <EditorPhase
+                isDark={isDark}
+                setPhase={setPhase}
+                setQuestions={setQuestions}
+                currentPrompt={currentPrompt}
+                setCurrentPrompt={setCurrentPrompt}
+                showPreview={showPreview}
+                setShowPreview={setShowPreview}
+                handlePublish={handlePublish}
+                refineVal={refineVal}
+                setRefineVal={setRefineVal}
+                isGenerating={isGenerating}
+                handleRefine={handleRefine}
+                file={file}
+                setFile={setFile}
+                fileInputRef={fileInputRef}
+                questions={questions}
+                reqCount={reqCount}
+                typeCounts={typeCounts}
+                onDragEnd={onDragEnd}
+                updateQ={updateQ}
+                deleteQ={deleteQ}
+                addOpt={addOpt}
+                updateOpt={updateOpt}
+                removeOpt={removeOpt}
+                addQuestion={addQuestion}
+                toggleTheme={() => setIsDark(!isDark)}
+            />
+        </>
     );
 }

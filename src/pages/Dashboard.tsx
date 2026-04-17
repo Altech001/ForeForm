@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/foreform";
+import SEO from "@/components/SEO";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit } from "lucide-react";
@@ -89,6 +90,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Dashboard" />
       {showTemplates && (
         <TemplateGallery
           onUseTemplate={createFromTemplate}

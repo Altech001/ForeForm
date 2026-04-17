@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuth } from "@/lib/AuthContext";
+import SEO from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { LogOut, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +29,7 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-100 flex flex-col">
+            <SEO title="My Profile" path="/profile" />
             {/* Minimal Navigation */}
             <nav className="p-8 flex items-center justify-between relative z-10">
                 <motion.button

@@ -1,5 +1,6 @@
 import React from "react";
 import { base44 } from "@/api/foreform";
+import SEO from "@/components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BarChart3 } from "lucide-react";
@@ -27,6 +28,7 @@ export default function FormResponses() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title={`${form?.title || "Form"} Responses`} path={`/forms/${formId}/responses`} />
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">

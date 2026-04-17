@@ -1,5 +1,6 @@
 import React from "react";
 import { base44 } from "@/api/foreform";
+import SEO from "@/components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,7 @@ export default function ResponseView() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEO title="Response Details" path={`/forms/${formId}/responses/${responseId}`} />
       {/* Header with breadcrumb */}
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3">

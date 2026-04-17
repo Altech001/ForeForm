@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/foreform";
+import SEO from "@/components/SEO";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,6 +223,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO title={form?.title || "Form"} description={form?.description || undefined} path={`/f/${formId}`} />
       <OfflineBanner />
       {/* Top bar */}
       <div className="w-full px-6 py-4 flex items-center justify-between max-w-3xl mx-auto">
