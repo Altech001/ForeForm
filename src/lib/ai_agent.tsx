@@ -9,7 +9,10 @@ import { base44 } from "@/api/foreform";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const CUSTOM_API_URL = "https://foreform.vercel.app/api/agent/chat/custom";
+// Use local backend in dev, vercel in prod
+const CUSTOM_API_URL = import.meta.env.VITE_API_URL
+    ? `${import.meta.env.VITE_API_URL}/agent/chat/custom`
+    : "https://foreform.vercel.app/api/agent/chat/custom";
 
 /**
  * Resolve the best Gemini API key to use.
@@ -577,7 +580,7 @@ export class ForeFormAgent {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(localStorage.getItem("foreform_token") ? { "Authorization": `Bearer ${localStorage.getItem("foreform_token")}` } : {})
+                ...(localStorage.getItem("base44_access_token") ? { "Authorization": `Bearer ${localStorage.getItem("base44_access_token")}` } : {})
             },
             body: JSON.stringify(body),
         });

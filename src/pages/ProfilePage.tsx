@@ -1,8 +1,7 @@
 import React from "react";
 import { useAuth } from "@/lib/AuthContext";
 import SEO from "@/components/SEO";
-import { Button } from "@/components/ui/button";
-import { LogOut, ArrowLeft } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -16,6 +15,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
 export default function ProfilePage() {
     const { user, logout } = useAuth();
@@ -28,105 +28,146 @@ export default function ProfilePage() {
         : user.email[0].toUpperCase();
 
     return (
-        <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-100 flex flex-col">
-            <SEO title="My Profile" path="/profile" />
-            {/* Minimal Navigation */}
-            <nav className="p-8 flex items-center justify-between relative z-10">
-                <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+        <div className="min-h-screen bg-[#fafafa] text-slate-900 selection:bg-slate-200">
+            <SEO title="Settings & Profile" path="/profile" />
+
+            {/* Top Navigation (Z-Pattern Start) */}
+            <nav className="flex items-center justify-between p-8 md:p-12 max-w-7xl mx-auto w-full">
+                <button
                     onClick={() => navigate("/")}
-                    className="p-2 -ml-2 hover:bg-slate-50 rounded-full transition-colors relative z-20"
+                    className="text-[11px] font-semibold  text-red-400 hover:text-slate-900 transition-colors"
                 >
-                    <ArrowLeft className="w-5 h-5 text-slate-400" />
-                </motion.button>
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-[10px] text-slate-300"
-                >
-                    Altech Technologies
-                </motion.div>
+                    ← Back to Dashboard
+                </button>
+                <div className="text-[11px] font-semibold  text-primary">
+                    Settings / Integrations
+                </div>
             </nav>
 
-            <main className="flex-1 flex flex-col items-center justify-center p-6 -mt-20">
-                {/* Z-Pattern Focal Point */}
-                <div className="max-w-md w-full space-y-12">
-                    <header className="space-y-6 text-center">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="w-24 h-24 rounded-full bg-slate-50 border border-slate-100 mx-auto flex items-center justify-center text-2xl font-light text-slate-400"
-                        >
-                            {initials}
-                        </motion.div>
-                        <div className="space-y-1">
-                            <motion.h1
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="text-3xl font-light tracking-tight"
-                            >
-                                {user.full_name || 'User'}
-                            </motion.h1>
-                            <motion.p
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="text-slate-400 text-sm font-medium"
-                            >
-                                {user.email}
-                            </motion.p>
-                        </div>
-                    </header>
+            {/* Main Z-Pattern Flow */}
+            <main className="max-w-6xl mx-auto px-8 md:px-12 mt-12 mb-32 grid grid-cols-1 lg:grid-cols-[1fr_2.5fr] gap-20 items-start">
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="p-1 border border-slate-100 rounded-xl hover:border-rose-400"
-                    >
+                {/* Left Column: Core Identity */}
+                <motion.aside
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    className="space-y-12 sticky top-20"
+                >
+                    <div className="space-y-6">
+                        <div className="w-20 h-20 bg-slate-200 flex items-center justify-center  text-xl font-light text-slate-500 rounded-full">
+                            {initials}
+                        </div>
+                        <div>
+                            <h1 className="text-4xl lg:text-5xl font-light  mb-2 text-slate-800">
+                                {user.full_name || 'User'}
+                            </h1>
+                            <p className="text-slate-400 tracking-wide font-medium text-sm">
+                                {user.email}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="pt-8">
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                                <button
-                                    className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl hover:bg-red-50 text-red-500 transition-all group"
-                                >
-                                    <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-                                    <span className="text-sm font-bold tracking-tight">Sign Out</span>
+                                <button className="group p-4 border border-rose-400 rounded-xl flex items-center gap-4 text-[11px] font-bold uppercase  text-rose-400 hover:text-rose-500 transition-colors">
+                                    Sign Out
+                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                 </button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-none border-slate-100 translate-y-[-50%]">
+                            <AlertDialogContent className="rounded-none border-slate-200">
                                 <AlertDialogHeader>
-                                    <AlertDialogTitle className="text-xl font-light">Confirm Sign Out</AlertDialogTitle>
-                                    <AlertDialogDescription className="text-slate-400">
-                                        Are you sure you want to sign out? You'll need to log in again to access your forms.
+                                    <AlertDialogTitle className="text-xl font-light">Sign Out</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-slate-500">
+                                        Are you sure you want to end your session?
                                     </AlertDialogDescription>
                                 </AlertDialogHeader>
-                                <AlertDialogFooter className="mt-6 gap-2">
-                                    <AlertDialogCancel className="rounded border-slate-100 font-bold hover:bg-slate-50">Cancel</AlertDialogCancel>
+                                <AlertDialogFooter className="mt-8 gap-4">
+                                    <AlertDialogCancel className="rounded-none border-slate-200 font-bold uppercase tracking-widest text-[10px] hover:bg-slate-50 hover:text-slate-900">Cancel</AlertDialogCancel>
                                     <AlertDialogAction
                                         onClick={() => logout()}
-                                        className="rounded bg-red-500 hover:bg-red-600 text-white font-bold border-none"
+                                        className="rounded-none bg-rose-500 hover:bg-rose-600 text-white font-bold uppercase tracking-widest text-[10px] border-none"
                                     >
-                                        Sign Out
+                                        Proceed
                                     </AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
-                    </motion.div>
+                    </div>
+                </motion.aside>
+
+                {/* Right Column: Configurations (Z-Pattern End) */}
+                <div className="space-y-24">
+
+                    {/* section: custom api keys */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                        <h2 className="text-[11px] font-bold uppercase  text-slate-300 mb-8 border-b border-slate-200 pb-4">
+                            AI Configuration
+                        </h2>
+
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 group">
+                            <div className="space-y-2 max-w-sm">
+                                <h3 className="text-xl font-light text-slate-800 ">Gemini AI Key</h3>
+                                <p className="text-sm text-slate-400 leading-relaxed">
+                                    Link your personal Gemini API key to override the system defaults and unlock advanced generation models.
+                                </p>
+                            </div>
+                            <div className="flex w-full md:w-auto items-center gap-6">
+                                <Input
+                                    type="password"
+                                    placeholder="Enter isolated API key"
+                                    className="bg-transparent border-b border-slate-300 py-2 focus:border-slate-800 transition-colors text-sm text-slate-700 placeholder:text-slate-300"
+                                />
+                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-indigo-500 transition-colors pb-2 border-b border-transparent hover:text-primary">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </motion.section>
+
+                    {/* section: integrations */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    >
+                        <h2 className="text-[11px] font-bold uppercase  text-slate-600 mb-8 border-b border-slate-200 pb-4">
+                            Integrations & Storage
+                        </h2>
+
+                        <div className="space-y-16">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                                <div className="space-y-2 max-w-sm">
+                                    <h3 className="text-xl font-light text-green-600 ">Google Sheets</h3>
+                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                        Establish a connection to sync all respondent submissions to a live external spreadsheet automatically.
+                                    </p>
+                                </div>
+                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-emerald-500 transition-colors">
+                                    Connect
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                                <div className="space-y-2 max-w-sm">
+                                    <h3 className="text-xl font-light text-blue-600 ">Google Drive</h3>
+                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                        Map a drive directory for automatic cold backup of heavy user-uploaded file attachments.
+                                    </p>
+                                </div>
+                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-blue-500 transition-colors">
+                                    Connect
+                                </button>
+                            </div>
+                        </div>
+                    </motion.section>
                 </div>
             </main>
-
-            <footer className="p-12 border-t border-slate-50">
-                <div className="max-w-5xl mx-auto flex justify-between items-center">
-                    <img src="/letter-m.png" alt="Logo" className="w-6 h-6 object-contain" />
-                    <span className="text-[10px] text-primary">
-                        System v1.0
-                    </span>
-                </div>
-            </footer>
         </div>
     );
 }

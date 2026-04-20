@@ -9,8 +9,7 @@ import { Phase, Question, Message, EXAMPLES } from "./complex-ai/types";
 import { PromptPhase } from "./complex-ai/PromptPhase";
 import { EditorPhase } from "./complex-ai/EditorPhase";
 import { useAgentSettings } from "@/hooks/useAgentSettings";
-import { AIService } from "@/service/ai_service";
-
+import { ForeFormAgent } from "@/lib/ai_agent";
 
 /* ─── AI Client ────────────────────────────────────────────── */
 // We now use the backend InvokeLLM bridge
@@ -45,12 +44,21 @@ export default function ComplexAI() {
         { id: "0", role: "ai", text: "Hi! Tell me what kind of form you need." },
     ]);
     const [inputVal, setInputVal] = useState("");
-    const [fileContext, setFileContext] = useState("");
-    const [fileName, setFileName] = useState("");
+    const [attachedFile, setAttachedFile] = useState<File | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const { settings } = useAgentSettings();
+    const agentRef = useRef(new ForeFormAgent());
+
+    const fileToBase64 = (f: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(f);
+            reader.onload = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+        });
+    };
 
     /* Editor-phase state */
     const [refineVal, setRefineVal] = useState("");
@@ -96,14 +104,23 @@ export default function ComplexAI() {
     async function callAI(prompt: string, refine = "") {
         setIsGen(true);
         try {
-            const data = await AIService.invoke(settings.model, {
-                messages: [{ role: "user", text: prompt }],
-                refinePrompt: refine,
-                systemPrompt: settings.systemPrompt,
-                temperature: settings.temperature,
-                apiKey: settings.model.startsWith("gemini") ? settings.geminiApiKey : settings.openAIApiKey
+            const p = refine ? `Refine the form:\n${prompt}\n\nUser request: ${refine}\nOutput valid JSON array of questions.` : prompt;
+            const data = await agentRef.current.chat(p, {
+                model: settings.model
             });
-            const qs = data.questions || [];
+
+            let qs: any[] = [];
+            const jsonMatch = data.text.match(/```json\s*([\s\S]*?)```/) ||
+                data.text.match(/\[[\s\S]*\]/) ||
+                data.text.match(/\{[\s\S]*\}/);
+
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                    if (Array.isArray(parsed)) qs = parsed[0]?.questions || (parsed[0]?.label ? parsed : []);
+                } catch { }
+            }
+
             if (qs.length) {
                 await handleAIResponseData(qs);
             } else {
@@ -130,27 +147,41 @@ export default function ComplexAI() {
         setInputVal("");
 
         try {
-            const data = await AIService.invoke(settings.model, {
-                messages: updatedMsgs,
-                fileContent: fileContext || undefined,
-                systemPrompt: settings.systemPrompt,
-                temperature: settings.temperature,
-                apiKey: settings.model.startsWith("gemini") ? settings.geminiApiKey : settings.openAIApiKey
+            let filesOpt = undefined;
+            if (attachedFile) {
+                const b64 = await fileToBase64(attachedFile);
+                filesOpt = [{ mimeType: attachedFile.type, data: b64 }];
+            }
+
+            const response = await agentRef.current.chat(val, {
+                files: filesOpt,
+                model: settings.model
             });
 
-            if (data.type === "message" || !data.questions || data.questions.length === 0) {
+            let qList: any[] = [];
+            const jsonMatch = response.text.match(/```json\s*([\s\S]*?)```/) ||
+                response.text.match(/\[[\s\S]*\]/) ||
+                response.text.match(/\{[\s\S]*\}/);
+
+            if (jsonMatch) {
+                try {
+                    const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                    if (Array.isArray(parsed)) {
+                        qList = parsed[0]?.questions || (parsed[0]?.label ? parsed : []);
+                    }
+                } catch { }
+            }
+
+            if (!qList.length) {
                 // Interactive conversation fallback
-                setMessages(prev => [...prev, { id: uid(), role: "ai", text: data.text || "Can you provide more details?" }]);
+                setMessages(prev => [...prev, { id: uid(), role: "ai", text: response.text.replace(/```json[\s\S]*?```/g, "").trim() || "Can you provide more details?" }]);
             } else {
                 // Form Generated
-                if (data.title && !currentPrompt.includes(data.title)) {
-                    setCurrentPrompt(data.title);
-                } else if (!currentPrompt) {
-                    setCurrentPrompt(val);
-                }
-                const qList = data.questions;
+                if (!currentPrompt) setCurrentPrompt(val);
+
                 const scrapedStr = qList.map((q: any) => `- ${q.label || q.title} (${q.type})`).join("\n");
-                const aiMessageResponseText = `${data.text ? data.text + "\n\n" : ""}I've drafted the form. Here are the questions I scraped:\n${scrapedStr}\n\nSwitching to Editor...`;
+                const cleanText = response.text.replace(/```json[\s\S]*?```/g, "").trim();
+                const aiMessageResponseText = `${cleanText ? cleanText + "\n\n" : ""}I've drafted the form. Here are the questions I scraped:\n${scrapedStr}\n\nSwitching to Editor...`;
 
                 setMessages(prev => [...prev, { id: uid(), role: "ai", text: aiMessageResponseText }]);
 
@@ -158,6 +189,7 @@ export default function ComplexAI() {
                 setTimeout(() => {
                     handleAIResponseData(qList);
                     setPhase("editor");
+                    setAttachedFile(null);
                 }, 3500);
             }
         } catch (e: any) {
@@ -242,10 +274,8 @@ export default function ComplexAI() {
                     textareaRef={textareaRef}
                     autoResize={autoResize}
                     toggleTheme={() => setIsDark(!isDark)}
-                    fileContext={fileContext}
-                    setFileContext={setFileContext}
-                    fileName={fileName}
-                    setFileName={setFileName}
+                    attachedFile={attachedFile}
+                    setAttachedFile={setAttachedFile}
                 />
             </>
         );
