@@ -17,6 +17,22 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 
+const SheetsIcon = () => (
+    <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#21A366" d="M28 2H10c-2.2 0-4 1.8-4 4v36c0 2.2 1.8 4 4 4h28c2.2 0 4-1.8 4-4V14L28 2z" />
+        <path fill="#185C37" d="M42 14H32c-2.2 0-4-1.8-4-4V2l14 12z" />
+        <path fill="#FFF" d="M12 22h24v2H12zm0 6h24v2H12zm0 6h24v2H12zm0-18h11v2H12z" />
+    </svg>
+);
+
+const DriveIcon = () => (
+    <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#FFC107" d="M30.3 32.5l-6-10.4l8.2-14.1h12l-6 10.4z" />
+        <path fill="#1976D2" d="M17.5 32.5l-6.2-10.7l6.2-10.7l12.4 21.4z" />
+        <path fill="#4CAF50" d="M30.3 32.5H4.7l6-10.4l25.6 0z" />
+    </svg>
+);
+
 export default function ProfilePage() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -142,11 +158,14 @@ export default function ProfilePage() {
 
                         <div className="space-y-16">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                <div className="space-y-2 max-w-sm">
-                                    <h3 className="text-xl font-light text-green-600 ">Google Sheets</h3>
-                                    <p className="text-sm text-slate-400 leading-relaxed">
-                                        Establish a connection to sync all respondent submissions to a live external spreadsheet automatically.
-                                    </p>
+                                <div className="flex items-start gap-6">
+                                    <SheetsIcon />
+                                    <div className="space-y-2 max-w-sm">
+                                        <h3 className="text-xl font-light text-green-600 ">Google Sheets</h3>
+                                        <p className="text-sm text-slate-400 leading-relaxed">
+                                            Establish a connection to sync all respondent submissions to a live external spreadsheet automatically.
+                                        </p>
+                                    </div>
                                 </div>
                                 <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-emerald-500 transition-colors">
                                     Connect
@@ -154,11 +173,14 @@ export default function ProfilePage() {
                             </div>
 
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                <div className="space-y-2 max-w-sm">
-                                    <h3 className="text-xl font-light text-blue-600 ">Google Drive</h3>
-                                    <p className="text-sm text-slate-400 leading-relaxed">
-                                        Map a drive directory for automatic cold backup of heavy user-uploaded file attachments.
-                                    </p>
+                                <div className="flex items-start gap-6">
+                                    <DriveIcon />
+                                    <div className="space-y-2 max-w-sm">
+                                        <h3 className="text-xl font-light text-blue-600 ">Google Drive</h3>
+                                        <p className="text-sm text-slate-400 leading-relaxed">
+                                            Map a drive directory for automatic cold backup of heavy user-uploaded file attachments.
+                                        </p>
+                                    </div>
                                 </div>
                                 <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-blue-500 transition-colors">
                                     Connect

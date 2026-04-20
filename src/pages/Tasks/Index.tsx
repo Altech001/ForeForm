@@ -13,14 +13,17 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { base44 } from "@/api/foreform";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TasksIndex() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
-    const { data: tasksData, isLoading } = useQuery({
+    const { data: tasksData, isLoading, isFetching } = useQuery({
         queryKey: ['tasks'],
-        queryFn: base44.entities.Task.list
+        queryFn: base44.entities.Task.list,
+        staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+        gcTime: 1000 * 60 * 30, // Keep in garbage collection for 30 minutes
     });
     const tasks: Task[] = tasksData || [];
 
@@ -179,7 +182,28 @@ export default function TasksIndex() {
             </header>
 
             <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-                {tasks.length === 0 ? (
+                {isLoading ? (
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {[...Array(6)].map((_, i) => (
+                            <Card key={i} className="border-border/50 shadow-none">
+                                <CardHeader className="p-5 pb-3">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="h-5 w-5 rounded-full" />
+                                        <Skeleton className="h-4 w-[150px]" />
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-5 pt-0 pl-14">
+                                    <Skeleton className="h-4 w-full mb-2" />
+                                    <Skeleton className="h-4 w-2/3 mb-4" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-5 w-16 rounded" />
+                                        <Skeleton className="h-5 w-20 rounded" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                ) : tasks.length === 0 ? (
                     <div className="text-center py-24 px-4 border border-dashed rounded-xl bg-card/50">
                         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                             <CheckCircle2 className="w-8 h-8 text-primary/60" />
