@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { base44 } from "@/api/foreform";
 import SEO from "@/components/SEO";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2, CheckCircle2, ExternalLink, Unplug, CloudUpload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,7 +17,17 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
+// ── Integration status type ─────────────────────────────────
+interface IntegrationInfo {
+    provider: string;
+    is_connected: boolean;
+    connected_email?: string;
+    connected_at?: string;
+}
+
+// ── SVG Icons ───────────────────────────────────────────────
 const SheetsIcon = () => (
     <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
         <path fill="#21A366" d="M28 2H10c-2.2 0-4 1.8-4 4v36c0 2.2 1.8 4 4 4h28c2.2 0 4-1.8 4-4V14L28 2z" />
@@ -37,15 +48,75 @@ export default function ProfilePage() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
+    // ── Integration state ───────────────────────────────────
+    const [integrations, setIntegrations] = useState<IntegrationInfo[]>([]);
+    const [loadingStatus, setLoadingStatus] = useState(true);
+    const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
+    const [disconnectingProvider, setDisconnectingProvider] = useState<string | null>(null);
+
+    // ── Fetch integration status on mount ───────────────────
+    useEffect(() => {
+        fetchStatus();
+    }, []);
+
+    const fetchStatus = async () => {
+        setLoadingStatus(true);
+        try {
+            const data = await base44.integrations.Google.status();
+            setIntegrations(data);
+        } catch (err) {
+            console.error("Failed to fetch integration status:", err);
+        } finally {
+            setLoadingStatus(false);
+        }
+    };
+
+    // ── Connect handler ─────────────────────────────────────
+    const handleConnect = async (provider: string) => {
+        setConnectingProvider(provider);
+        try {
+            const { auth_url } = await base44.integrations.Google.getAuthUrl(provider);
+            window.location.href = auth_url;
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to start Google connection");
+            setConnectingProvider(null);
+        }
+    };
+
+    // ── Disconnect handler ──────────────────────────────────
+    const handleDisconnect = async (provider: string) => {
+        setDisconnectingProvider(provider);
+        try {
+            await base44.integrations.Google.disconnect(provider);
+            toast.success(
+                provider === "google_sheets"
+                    ? "Google Sheets disconnected"
+                    : "Google Drive disconnected"
+            );
+            await fetchStatus();
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to disconnect");
+        } finally {
+            setDisconnectingProvider(null);
+        }
+    };
+
+    // ── Helpers ─────────────────────────────────────────────
+    const getIntegration = (provider: string) =>
+        integrations.find((i) => i.provider === provider);
+
     if (!user) return null;
 
     const initials = user.full_name
         ? user.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
         : user.email[0].toUpperCase();
 
+    const driveInfo = getIntegration("google_drive");
+    const sheetsInfo = getIntegration("google_sheets");
+
     return (
         <div className="min-h-screen bg-[#fafafa] text-slate-900 selection:bg-slate-200">
-            <SEO title="Settings & Profile" path="/profile" />
+            <SEO title="Settings &amp; Profile" path="/profile" />
 
             {/* Top Navigation (Z-Pattern Start) */}
             <nav className="flex items-center justify-between p-8 md:p-12 max-w-7xl mx-auto w-full">
@@ -153,43 +224,186 @@ export default function ProfilePage() {
                         transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     >
                         <h2 className="text-[11px] font-bold uppercase  text-slate-600 mb-8 border-b border-slate-200 pb-4">
-                            Integrations & Storage
+                            Integrations &amp; Storage
                         </h2>
 
                         <div className="space-y-16">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                <div className="flex items-start gap-6">
-                                    <SheetsIcon />
-                                    <div className="space-y-2 max-w-sm">
-                                        <h3 className="text-xl font-light text-green-600 ">Google Sheets</h3>
-                                        <p className="text-sm text-slate-400 leading-relaxed">
-                                            Establish a connection to sync all respondent submissions to a live external spreadsheet automatically.
-                                        </p>
-                                    </div>
-                                </div>
-                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-emerald-500 transition-colors">
-                                    Connect
-                                </button>
-                            </div>
 
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                <div className="flex items-start gap-6">
-                                    <DriveIcon />
-                                    <div className="space-y-2 max-w-sm">
-                                        <h3 className="text-xl font-light text-blue-600 ">Google Drive</h3>
-                                        <p className="text-sm text-slate-400 leading-relaxed">
-                                            Map a drive directory for automatic cold backup of heavy user-uploaded file attachments.
-                                        </p>
-                                    </div>
-                                </div>
-                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-blue-500 transition-colors">
-                                    Connect
-                                </button>
-                            </div>
+                            {/* ── Google Sheets Integration ─────────────── */}
+                            <IntegrationCard
+                                icon={<SheetsIcon />}
+                                title="Google Sheets"
+                                titleColor="text-green-600"
+                                description="Establish a connection to sync all respondent submissions to a live external spreadsheet automatically."
+                                provider="google_sheets"
+                                info={sheetsInfo}
+                                isLoading={loadingStatus}
+                                isConnecting={connectingProvider === "google_sheets"}
+                                isDisconnecting={disconnectingProvider === "google_sheets"}
+                                onConnect={() => handleConnect("google_sheets")}
+                                onDisconnect={() => handleDisconnect("google_sheets")}
+                                connectedAccentColor="text-emerald-500"
+                                hoverAccentColor="hover:text-emerald-500"
+                            />
+
+                            {/* ── Google Drive Integration ──────────────── */}
+                            <IntegrationCard
+                                icon={<DriveIcon />}
+                                title="Google Drive"
+                                titleColor="text-blue-600"
+                                description="Map a drive directory for automatic cold backup of heavy user-uploaded file attachments."
+                                provider="google_drive"
+                                info={driveInfo}
+                                isLoading={loadingStatus}
+                                isConnecting={connectingProvider === "google_drive"}
+                                isDisconnecting={disconnectingProvider === "google_drive"}
+                                onConnect={() => handleConnect("google_drive")}
+                                onDisconnect={() => handleDisconnect("google_drive")}
+                                connectedAccentColor="text-blue-500"
+                                hoverAccentColor="hover:text-blue-500"
+                            />
+
                         </div>
                     </motion.section>
                 </div>
             </main>
+        </div>
+    );
+}
+
+
+// ── Integration Card Component ─────────────────────────────
+interface IntegrationCardProps {
+    icon: React.ReactNode;
+    title: string;
+    titleColor: string;
+    description: string;
+    provider: string;
+    info?: IntegrationInfo;
+    isLoading: boolean;
+    isConnecting: boolean;
+    isDisconnecting: boolean;
+    onConnect: () => void;
+    onDisconnect: () => void;
+    connectedAccentColor: string;
+    hoverAccentColor: string;
+}
+
+function IntegrationCard({
+    icon,
+    title,
+    titleColor,
+    description,
+    provider,
+    info,
+    isLoading,
+    isConnecting,
+    isDisconnecting,
+    onConnect,
+    onDisconnect,
+    connectedAccentColor,
+    hoverAccentColor,
+}: IntegrationCardProps) {
+    const isConnected = info?.is_connected ?? false;
+
+    return (
+        <div className="group">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="flex items-start gap-6">
+                    {icon}
+                    <div className="space-y-2 max-w-sm">
+                        <div className="flex items-center gap-3">
+                            <h3 className={`text-xl font-light ${titleColor}`}>{title}</h3>
+                            {isConnected && (
+                                <motion.span
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-full"
+                                >
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Connected</span>
+                                </motion.span>
+                            )}
+                        </div>
+                        <p className="text-sm text-slate-400 leading-relaxed">
+                            {description}
+                        </p>
+                        {/* Connected account info */}
+                        <AnimatePresence>
+                            {isConnected && info?.connected_email && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="pt-2"
+                                >
+                                    <p className="text-xs text-slate-400">
+                                        Linked to <span className="font-semibold text-slate-600">{info.connected_email}</span>
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                    {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
+                    ) : isConnected ? (
+                        <>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <button
+                                        disabled={isDisconnecting}
+                                        className="group/btn flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-300 hover:text-rose-500 transition-colors disabled:opacity-50"
+                                    >
+                                        {isDisconnecting ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Unplug className="w-3.5 h-3.5 group-hover/btn:rotate-12 transition-transform" />
+                                        )}
+                                        Disconnect
+                                    </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-none border-slate-200">
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle className="text-xl font-light">Disconnect {title}?</AlertDialogTitle>
+                                        <AlertDialogDescription className="text-slate-500">
+                                            This will revoke ForeForm's access to your {title} account
+                                            {info?.connected_email ? ` (${info.connected_email})` : ""}.
+                                            You can reconnect at any time.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter className="mt-8 gap-4">
+                                        <AlertDialogCancel className="rounded-none border-slate-200 font-bold uppercase tracking-widest text-[10px] hover:bg-slate-50 hover:text-slate-900">
+                                            Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => onDisconnect()}
+                                            className="rounded-none bg-rose-500 hover:bg-rose-600 text-white font-bold uppercase tracking-widest text-[10px] border-none"
+                                        >
+                                            Disconnect
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </>
+                    ) : (
+                        <button
+                            onClick={onConnect}
+                            disabled={isConnecting}
+                            className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${hoverAccentColor} transition-colors disabled:opacity-50`}
+                        >
+                            {isConnecting ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <CloudUpload className="w-3.5 h-3.5" />
+                            )}
+                            Connect
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

@@ -182,6 +182,31 @@ export const base44 = {
                 return JSON.stringify({ questions: res.questions });
             },
             SendEmail: async (args: any) => { return true; }
+        },
+        Google: {
+            getAuthUrl: (provider: string) => {
+                const redirectUri = encodeURIComponent(`${window.location.origin}/integrations/google/callback`);
+                return fetchApi(`/integrations/google/auth-url?provider=${provider}&redirect_uri=${redirectUri}`);
+            },
+            callback: (code: string, provider: string) => {
+                const redirectUri = `${window.location.origin}/integrations/google/callback`;
+                return fetchApi('/integrations/google/callback', {
+                    method: 'POST',
+                    body: JSON.stringify({ code, provider, redirect_uri: redirectUri }),
+                });
+            },
+            status: () => fetchApi('/integrations/google/status'),
+            disconnect: (provider: string) => fetchApi(`/integrations/google/disconnect?provider=${provider}`, {
+                method: 'DELETE',
+            }),
+            pushToDrive: (formId: string, fileName?: string, folderName?: string) => fetchApi('/integrations/google/push-drive', {
+                method: 'POST',
+                body: JSON.stringify({ form_id: formId, file_name: fileName, folder_name: folderName || 'ForeForm Exports' }),
+            }),
+            pushToSheets: (formId: string, spreadsheetName?: string) => fetchApi('/integrations/google/push-sheets', {
+                method: 'POST',
+                body: JSON.stringify({ form_id: formId, spreadsheet_name: spreadsheetName }),
+            }),
         }
     }
 };

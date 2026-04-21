@@ -26,6 +26,7 @@ import Documents from './pages/Tasks/Documents';
 import TasksIndex from './pages/Tasks/Index';
 import ViewTask from './pages/Tasks/ViewTask';
 import AgentPage from './pages/agent';
+import GoogleCallbackPage from './pages/GoogleCallbackPage';
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
@@ -102,6 +103,7 @@ const AuthenticatedApp = () => {
           <Route path="/transactions" element={<MeriteTransactions />} />
           <Route path="/users" element={<MeriteUsers />} />
           <Route path="/agent" element={<AgentPage />} />
+          <Route path="/integrations/google/callback" element={<GoogleCallbackPage />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />
