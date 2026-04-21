@@ -739,10 +739,23 @@ export function getAgent(): ForeFormAgent {
  */
 export async function quickPrompt(
     prompt: string,
-    options?: { temperature?: number; maxTokens?: number }
+    options?: { temperature?: number; maxTokens?: number; files?: { mimeType: string; data: string }[] }
 ): Promise<string> {
+    const parts: any[] = [{ text: prompt }];
+
+    if (options?.files) {
+        options.files.forEach(f => {
+            parts.push({
+                inline_data: {
+                    mime_type: f.mimeType,
+                    data: f.data,
+                }
+            });
+        });
+    }
+
     const body = {
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig: {
             temperature: options?.temperature ?? 0.7,
             maxOutputTokens: options?.maxTokens ?? 4096,

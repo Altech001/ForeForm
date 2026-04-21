@@ -8,6 +8,7 @@ import { base44 } from "@/api/foreform";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { quickPrompt } from "@/lib/ai_agent";
 
 function generateId() {
     return "q_" + Math.random().toString(36).substring(2, 9);
@@ -27,13 +28,12 @@ export default function ImportPanel({ open, onOpenChange, onImport }: ImportPane
     const [error, setError] = useState("");
     const fileRef = useRef<HTMLInputElement>(null);
 
-    const parseFromAI = async (text: string) => {
+    const parseWithAI = async (text: string, files?: { mimeType: string, data: string }[]) => {
         setLoading(true);
         setError("");
         setPreview(null);
         try {
-            const result = await base44.integrations.Core.InvokeLLM({
-                prompt: `You are a research form builder assistant. Extract questions from the following text/document content and convert them into structured form questions.
+            const basePrompt = `You are a research form builder assistant. Extract questions from the following text/document content and convert them into structured form questions.
 
 For each question, determine the most appropriate type:
 - short_text: for short one-line answers
@@ -45,35 +45,24 @@ For each question, determine the most appropriate type:
 - number: for numeric inputs
 - email: for email inputs
 
-Content to process:
----
-${text}
----
+Return ONLY valid JSON matching this schema: { "questions": [ { "label": "question text", "type": "short_text", "required": true, "options": [] } ] }. No extra text, reasoning, or markdown blocks.`;
 
-Return only valid JSON matching this schema, no extra text.`,
-                response_json_schema: {
-                    type: "object",
-                    properties: {
-                        questions: {
-                            type: "array",
-                            items: {
-                                type: "object",
-                                properties: {
-                                    label: { type: "string" },
-                                    type: { type: "string" },
-                                    required: { type: "boolean" },
-                                    options: { type: "array", items: { type: "string" } }
-                                },
-                                required: ["label", "type"]
-                            }
-                        }
-                    },
-                    required: ["questions"]
-                }
-            });
+            const prompt = text
+                ? `${basePrompt}\n\nContent to process:\n---\n${text}\n---`
+                : basePrompt;
 
-            let parsedData = typeof result === "string" ? JSON.parse(result) : result;
-            if (typeof parsedData === "string") parsedData = JSON.parse(parsedData);
+            const resultText = await quickPrompt(prompt, { temperature: 0.2, files });
+
+            const jsonMatch = resultText.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+            if (!jsonMatch) throw new Error("Failed to parse AI response as JSON");
+
+            let parsedData = JSON.parse(jsonMatch[0]);
+
+            // If parsedData is an array instead of { questions: [] }, normalize it
+            if (Array.isArray(parsedData)) {
+                parsedData = { questions: parsedData };
+            }
+
             const questions = (parsedData.questions || []).map((q: any) => ({ ...q, id: generateId(), options: q.options || [] }));
 
             if (!questions.length) {
@@ -92,32 +81,31 @@ Return only valid JSON matching this schema, no extra text.`,
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        setLoading(true);
+
         setError("");
         setPreview(null);
 
         try {
-            const { file_url } = await base44.integrations.Core.UploadFile({ file });
-            const extracted = await base44.integrations.Core.ExtractDataFromUploadedFile({
-                file_url,
-                json_schema: {
-                    type: "object",
-                    properties: {
-                        raw_text: { type: "string", description: "All text content from the file" }
-                    }
-                }
-            });
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    const base64Data = (reader.result as string).split(",")[1];
+                    let mimeType = file.type;
+                    if (file.name.endsWith('.docx')) mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                    if (file.name.endsWith('.pdf')) mimeType = 'application/pdf';
+                    if (file.name.endsWith('.xlsx')) mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-            const text = extracted?.output?.raw_text || JSON.stringify(extracted?.output || "");
-            if (!text) {
-                setError("Could not extract text from file.");
-                return;
-            }
-            await parseFromAI(text);
+                    await parseWithAI("", [{ mimeType: mimeType || "application/octet-stream", data: base64Data }]);
+                } catch (err) {
+                    setError("File upload or extraction failed.");
+                }
+            };
+            reader.onerror = () => {
+                setError("Failed to read file.");
+            };
+            reader.readAsDataURL(file);
         } catch (err) {
             setError("File upload or extraction failed.");
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -126,7 +114,7 @@ Return only valid JSON matching this schema, no extra text.`,
             setError("Please paste some content first.");
             return;
         }
-        parseFromAI(pastedText);
+        parseWithAI(pastedText);
     };
 
     const confirmImport = () => {
