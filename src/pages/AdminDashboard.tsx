@@ -98,10 +98,8 @@ export default function AdminDashboard() {
                             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
                         </Button>
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                                <ShieldCheck className="w-5 h-5 text-primary" />
-                            </div>
-                            <h1 className="text-lg sm:text-xl font-black tracking-tight">Admin Panel</h1>
+
+                            <h1 className="text-lg sm:text-xl font-black tracking-tight">Admin Control Panel</h1>
                         </div>
                     </div>
                     <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-xs">
@@ -118,7 +116,7 @@ export default function AdminDashboard() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                                className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
                                     ? "bg-primary text-primary-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                                     }`}
@@ -188,10 +186,10 @@ function OverviewTab() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05 }}
-                        className="bg-card border border-border/60 rounded-xl p-5"
+                        className="bg-card border border-border/60 rounded p-5"
                     >
                         <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center`}>
+                            <div className={`w-10 h-10 rounded ${s.bg} flex items-center justify-center`}>
                                 <s.icon className={`w-5 h-5 ${s.color}`} />
                             </div>
                         </div>
@@ -204,13 +202,13 @@ function OverviewTab() {
             {/* Today */}
             <div>
                 <h3 className="text-sm font-bold mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-primary" /> Today's Activity
+                    Today's Activity
                 </h3>
                 <div className="grid grid-cols-3 gap-4">
                     {todayCards.map((t) => (
-                        <div key={t.label} className="bg-card border border-border/60 rounded-lg p-4 text-center">
-                            <p className="text-2xl font-black">{t.value}</p>
-                            <p className="text-[11px] text-muted-foreground font-medium">{t.label}</p>
+                        <div key={t.label} className="bg-card border border-border/60 rounded p-4 text-center">
+                            <p className="text-2xl text-primary">{t.value}</p>
+                            <p className="text-[11px] text-primary font-medium">{t.label}</p>
                         </div>
                     ))}
                 </div>
@@ -220,7 +218,7 @@ function OverviewTab() {
             {dashboard?.recent_users?.length > 0 && (
                 <div>
                     <h3 className="text-sm font-bold mb-3">Recent Users</h3>
-                    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                    <div className="bg-card border border-border/30 rounded-none shadow-none overflow-hidden">
                         {dashboard.recent_users.slice(0, 5).map((u: any) => (
                             <div key={u.id} className="flex items-center justify-between px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors">
                                 <div className="flex items-center gap-3">
@@ -245,7 +243,7 @@ function OverviewTab() {
             {recentResponses?.responses?.length > 0 && (
                 <div>
                     <h3 className="text-sm font-bold mb-3">Latest Responses</h3>
-                    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                    <div className="bg-card border border-border/30 rounded-none shadow-none overflow-hidden">
                         {recentResponses.responses.slice(0, 5).map((r: any) => (
                             <div key={r.id} className="flex items-center justify-between px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors">
                                 <div>
@@ -355,7 +353,7 @@ function UsersTab() {
             {/* Users List */}
             {isLoading ? (
                 <div className="space-y-3">
-                    {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-muted/50 animate-pulse rounded-xl" />)}
+                    {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-muted/50 animate-pulse rounded" />)}
                 </div>
             ) : users.length === 0 ? (
                 <div className="text-center py-16">
@@ -363,11 +361,11 @@ function UsersTab() {
                     <p className="text-muted-foreground">No users found</p>
                 </div>
             ) : (
-                <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                <div className="bg-card border border-border/30 rounded-none overflow-hidden">
                     {users.map((u: any) => (
                         <div key={u.id} className="flex items-center justify-between px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors group">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary/5 flex items-center justify-center text-sm font-bold text-primary shrink-0">
                                     {u.full_name?.[0]?.toUpperCase() || "?"}
                                 </div>
                                 <div className="min-w-0">
@@ -569,7 +567,7 @@ function FormsTab() {
 
             {isLoading ? (
                 <div className="space-y-3">
-                    {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted/50 animate-pulse rounded-xl" />)}
+                    {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-muted/50 animate-pulse rounded-none" />)}
                 </div>
             ) : forms.length === 0 ? (
                 <div className="text-center py-16">
@@ -577,7 +575,7 @@ function FormsTab() {
                     <p className="text-muted-foreground">No forms found</p>
                 </div>
             ) : (
-                <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                <div className="bg-card border border-border/30 rounded-none overflow-hidden">
                     {forms.map((f: any) => (
                         <div key={f.id} className="flex items-center justify-between px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors">
                             <div className="min-w-0 flex-1">
@@ -639,7 +637,7 @@ function ActivityTab() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-primary" /> Admin Activity Log
+                    Admin Activity Logs
                 </h3>
                 <Badge variant="outline" className="text-muted-foreground px-3 py-1.5">{total} entries</Badge>
             </div>
@@ -654,7 +652,7 @@ function ActivityTab() {
                     <p className="text-muted-foreground">No activity recorded yet</p>
                 </div>
             ) : (
-                <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+                <div className="bg-card border border-border/30 rounded overflow-hidden shadow-none">
                     {logs.map((log: any) => (
                         <div key={log.id} className="flex items-start gap-3 px-4 py-3 border-b border-border/30 last:border-b-0 hover:bg-muted/30 transition-colors">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${getActionColor(log.action)}`}>
