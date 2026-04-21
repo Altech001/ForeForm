@@ -19,7 +19,9 @@ import {
     Link as LinkIcon,
     FolderPlus,
     Layers,
-    ExternalLink
+    ExternalLink,
+    Cloud,
+    HardDrive
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -59,6 +61,8 @@ interface Document {
     is_joint?: boolean;
 }
 
+type UploadDestination = "auto" | "drive" | "cloudinary";
+
 export default function Documents() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -82,6 +86,7 @@ export default function Documents() {
             setIsUploadOpen(false);
             setUploadFile(null);
             setCustomName("");
+            setUploadDestination("auto");
         }
     });
 
@@ -107,6 +112,7 @@ export default function Documents() {
     const [isUploading, setIsUploading] = useState(false);
     const [editingDoc, setEditingDoc] = useState<Document | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
+    const [uploadDestination, setUploadDestination] = useState<UploadDestination>("auto");
 
     const [activeFilter, setActiveFilter] = useState<"all" | "joint" | "image" | "pdf">("all");
 
@@ -116,11 +122,37 @@ export default function Documents() {
 
         setIsUploading(true);
         try {
-            const res = await base44.integrations.Core.UploadFile({ file: uploadFile });
+            let fileUrl: string;
+            let uploadDest = uploadDestination;
+
+            if (uploadDestination === "auto" || uploadDestination === "drive") {
+                // Use smart upload (auto-routes text→Drive, media→Cloudinary) or force Drive
+                try {
+                    const driveRes = await base44.integrations.Drive.smartUpload(
+                        uploadFile,
+                        uploadDestination === "auto" ? undefined : "drive"
+                    );
+                    fileUrl = driveRes.file_url;
+                    uploadDest = driveRes.destination;
+                    if (driveRes.destination === "drive") {
+                        toast.info(`Uploaded to Google Drive`, { duration: 2000 });
+                    }
+                } catch {
+                    // Fallback to Cloudinary if Drive fails
+                    const res = await base44.integrations.Core.UploadFile({ file: uploadFile });
+                    fileUrl = res.file_url;
+                    uploadDest = "cloudinary";
+                }
+            } else {
+                // Cloudinary only
+                const res = await base44.integrations.Core.UploadFile({ file: uploadFile });
+                fileUrl = res.file_url;
+            }
+
             const payload = {
                 name: customName || uploadFile.name,
                 original_name: uploadFile.name,
-                url: res.file_url,
+                url: fileUrl,
                 type: uploadFile.type,
                 size: uploadFile.size,
                 is_joint: activeFilter === "joint"
@@ -415,6 +447,37 @@ export default function Documents() {
                                 }}
                                 disabled={isUploading}
                             />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-xs font-bold  text-muted-foreground ml-1">Upload Destination</label>
+                            <div className="flex items-center gap-2">
+                                <Badge
+                                    variant={uploadDestination === "auto" ? "default" : "outline"}
+                                    className={`cursor-pointer px-3 py-1.5 ${uploadDestination !== "auto" ? "hover:bg-primary/5 border-primary/20 text-primary" : ""}`}
+                                    onClick={() => setUploadDestination("auto")}
+                                >
+                                    ✨ Auto
+                                </Badge>
+                                <Badge
+                                    variant={uploadDestination === "drive" ? "default" : "outline"}
+                                    className={`cursor-pointer px-3 py-1.5 ${uploadDestination !== "drive" ? "hover:bg-blue-500/5 border-blue-500/20 text-blue-600" : "bg-blue-600 hover:bg-blue-700"}`}
+                                    onClick={() => setUploadDestination("drive")}
+                                >
+                                    <HardDrive className="w-3 h-3 mr-1" /> Google Drive
+                                </Badge>
+                                <Badge
+                                    variant={uploadDestination === "cloudinary" ? "default" : "outline"}
+                                    className={`cursor-pointer px-3 py-1.5 ${uploadDestination !== "cloudinary" ? "hover:bg-orange-500/5 border-orange-500/20 text-orange-600" : "bg-orange-600 hover:bg-orange-700"}`}
+                                    onClick={() => setUploadDestination("cloudinary")}
+                                >
+                                    <Cloud className="w-3 h-3 mr-1" /> Cloudinary
+                                </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground ml-1 italic">
+                                {uploadDestination === "auto" && "Docs & text → Google Drive · Images & media → Cloudinary"}
+                                {uploadDestination === "drive" && "All files will be uploaded to your Google Drive."}
+                                {uploadDestination === "cloudinary" && "All files will be uploaded to Cloudinary CDN."}
+                            </p>
                         </div>
                         <div className="grid gap-2">
                             <label className="text-xs font-bold  text-muted-foreground ml-1">Custom Filename</label>

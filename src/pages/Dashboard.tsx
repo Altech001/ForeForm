@@ -3,8 +3,9 @@ import { base44 } from "@/api/foreform";
 import SEO from "@/components/SEO";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit } from "lucide-react";
+import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 
 import { toast } from "sonner";
 import FormCard from "@/components/forms/FormCard";
@@ -31,6 +32,7 @@ function generateId() {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -105,6 +107,14 @@ export default function Dashboard() {
             <h1 className="text-lg sm:text-xl font-black tracking-tight">ForeForm</h1>
           </div>
           <div className="flex items-center gap-2">
+            {user?.role === "admin" && (
+              <Button variant="outline" asChild className="gap-2 h-9 sm:h-10 px-3 sm:px-4 text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700">
+                <Link to="/admin">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin Panel</span>
+                </Link>
+              </Button>
+            )}
             <Button variant="destructive" asChild className="gap-2 h-9 sm:h-10 px-3 sm:px-4">
               <Link to="/ai-respondents">
                 <Bot className="w-4 h-4" />

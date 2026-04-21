@@ -207,6 +207,98 @@ export const base44 = {
                 method: 'POST',
                 body: JSON.stringify({ form_id: formId, spreadsheet_name: spreadsheetName }),
             }),
-        }
-    }
+        },
+        Sheets: {
+            push: (formId: string, spreadsheetName?: string, sheetName?: string) => fetchApi('/sheets/push', {
+                method: 'POST',
+                body: JSON.stringify({ form_id: formId, spreadsheet_name: spreadsheetName, sheet_name: sheetName || 'Responses' }),
+            }),
+            append: (formId: string, spreadsheetId: string, sheetName?: string) => fetchApi('/sheets/append', {
+                method: 'POST',
+                body: JSON.stringify({ form_id: formId, spreadsheet_id: spreadsheetId, sheet_name: sheetName || 'Responses' }),
+            }),
+            preview: (spreadsheetId: string, sheetName?: string, maxRows?: number) =>
+                fetchApi(`/sheets/preview?spreadsheet_id=${spreadsheetId}&sheet_name=${sheetName || 'Responses'}&max_rows=${maxRows || 50}`),
+            list: (pageSize?: number) => fetchApi(`/sheets/list?page_size=${pageSize || 20}`),
+            info: (spreadsheetId: string) => fetchApi(`/sheets/${spreadsheetId}/info`),
+            sync: (formId: string, spreadsheetId: string, sheetName?: string) => fetchApi('/sheets/sync', {
+                method: 'POST',
+                body: JSON.stringify({ form_id: formId, spreadsheet_id: spreadsheetId, sheet_name: sheetName || 'Responses' }),
+            }),
+        },
+        Drive: {
+            smartUpload: async (file: File, destination?: string, folderId?: string) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                if (destination) formData.append('destination', destination);
+                if (folderId) formData.append('folder_id', folderId);
+                const token = getToken();
+                const headers = new Headers();
+                if (token) headers.set('Authorization', `Bearer ${token}`);
+                const res = await fetch(`${API_BASE}/drive/upload`, { method: 'POST', body: formData, headers });
+                if (!res.ok) { const err = await res.json().catch(() => ({})); throw { status: res.status, message: err.detail || 'Upload failed' }; }
+                return await res.json();
+            },
+            uploadRaw: async (file: File, folderId?: string) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                if (folderId) formData.append('folder_id', folderId);
+                const token = getToken();
+                const headers = new Headers();
+                if (token) headers.set('Authorization', `Bearer ${token}`);
+                const res = await fetch(`${API_BASE}/drive/upload-raw`, { method: 'POST', body: formData, headers });
+                if (!res.ok) throw new Error('Drive upload failed');
+                return await res.json();
+            },
+            listFiles: (folderId?: string, pageSize?: number) => {
+                let url = `/drive/files?page_size=${pageSize || 20}`;
+                if (folderId) url += `&folder_id=${folderId}`;
+                return fetchApi(url);
+            },
+            getFile: (fileId: string) => fetchApi(`/drive/files/${fileId}`),
+            createFolder: (name: string, parentId?: string) => fetchApi('/drive/folder', {
+                method: 'POST',
+                body: JSON.stringify({ name, parent_id: parentId }),
+            }),
+            listFolders: (parentId?: string) => {
+                let url = '/drive/folders';
+                if (parentId) url += `?parent_id=${parentId}`;
+                return fetchApi(url);
+            },
+            deleteFile: (fileId: string) => fetchApi(`/drive/files/${fileId}`, { method: 'DELETE' }),
+            search: (query: string) => fetchApi(`/drive/search?query=${encodeURIComponent(query)}`),
+            downloadLink: (fileId: string) => fetchApi(`/drive/download/${fileId}`),
+        },
+    },
+    admin: {
+        dashboard: () => fetchApi('/admin/dashboard'),
+        listUsers: (page?: number, search?: string, role?: string) => {
+            let url = `/admin/users?page=${page || 1}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (role) url += `&role=${role}`;
+            return fetchApi(url);
+        },
+        getUser: (userId: string) => fetchApi(`/admin/users/${userId}`),
+        updateUserRole: (userId: string, role: string) => fetchApi(`/admin/users/${userId}/role`, {
+            method: 'PATCH',
+            body: JSON.stringify({ role }),
+        }),
+        updateUser: (userId: string, data: any) => fetchApi(`/admin/users/${userId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
+        deleteUser: (userId: string) => fetchApi(`/admin/users/${userId}`, { method: 'DELETE' }),
+        bulkRoleUpdate: (userIds: string[], role: string) => fetchApi('/admin/users/bulk-role', {
+            method: 'POST',
+            body: JSON.stringify({ user_ids: userIds, role }),
+        }),
+        activityLog: (page?: number) => fetchApi(`/admin/activity-log?page=${page || 1}`),
+        listForms: (page?: number, search?: string, status?: string) => {
+            let url = `/admin/forms?page=${page || 1}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (status) url += `&status=${status}`;
+            return fetchApi(url);
+        },
+        recentResponses: (limit?: number) => fetchApi(`/admin/responses/recent?limit=${limit || 20}`),
+    },
 };
