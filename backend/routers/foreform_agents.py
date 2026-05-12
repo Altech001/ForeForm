@@ -401,14 +401,25 @@ def custom_chat(
                 })
 
     try:
+        def get_resolved_key(provider: str) -> Optional[str]:
+            key = db.query(ApiKey).filter(ApiKey.user_id == current_user.id, ApiKey.provider == provider, ApiKey.is_active == True, ApiKey.is_default == True).first()
+            if not key:
+                key = db.query(ApiKey).filter(ApiKey.user_id == current_user.id, ApiKey.provider == provider, ApiKey.is_active == True).first()
+            if not key:
+                key = db.query(ApiKey).filter(ApiKey.provider == provider, ApiKey.is_shared == True, ApiKey.is_active == True).first()
+            
+            if key:
+                key.usage_count = str(int(key.usage_count or "0") + 1)
+                key.last_used_at = datetime.datetime.utcnow()
+                db.commit()
+                return key.api_key
+            return None
+
         if data.provider == "groq":
-            key_record = db.query(ApiKey).filter(ApiKey.provider == "groq", ApiKey.is_active == True, ApiKey.is_default == True).first()
-            if not key_record:
-                key_record = db.query(ApiKey).filter(ApiKey.provider == "groq", ApiKey.is_active == True).first()
-            api_key = key_record.api_key if key_record else os.environ.get("GROQ_API_KEY")
+            api_key = get_resolved_key("groq") or os.environ.get("GROQ_API_KEY")
             
             client = OpenAI(
-                api_key=api_key or os.environ.get("GROQ_API_KEY") or "invalid",
+                api_key=api_key or "invalid",
                 base_url="https://api.groq.com/openai/v1",
             )
             kwargs = {
@@ -423,13 +434,10 @@ def custom_chat(
             parse_completion(completion)
 
         elif data.provider == "cerebras":
-            key_record = db.query(ApiKey).filter(ApiKey.provider == "cerebras", ApiKey.is_active == True, ApiKey.is_default == True).first()
-            if not key_record:
-                key_record = db.query(ApiKey).filter(ApiKey.provider == "cerebras", ApiKey.is_active == True).first()
-            api_key = key_record.api_key if key_record else os.environ.get("CEREBRAS_API_KEY")
+            api_key = get_resolved_key("cerebras") or os.environ.get("CEREBRAS_API_KEY")
             
             client = Cerebras(
-                api_key=api_key or os.environ.get("CEREBRAS_API_KEY") or "invalid"
+                api_key=api_key or "invalid"
             )
             kwargs = {
                 "messages": openai_messages,

@@ -56,6 +56,11 @@ class ThemeToken(str, Enum):
     slate = "slate"
 
 
+class ReleaseGrades(str, Enum):
+    immediately = "immediately"
+    manual = "manual"
+
+
 # ── Nested objects ───────────────────────────────────────────
 
 class QuestionCondition(BaseModel):
@@ -70,6 +75,8 @@ class Question(BaseModel):
     label: str
     required: bool = False
     options: List[str] = []
+    points: Optional[float] = None
+    correct_answer: Optional[str] = None
     condition: Optional[QuestionCondition] = None
 
 
@@ -86,6 +93,25 @@ class Branding(BaseModel):
     header_style: Optional[HeaderStyle] = HeaderStyle.minimal
     cover_image_url: Optional[str] = None
     logo_position: Optional[LogoPosition] = LogoPosition.left
+    font: Optional[str] = "inter"
+
+
+class QuizSettings(BaseModel):
+    enabled: bool = False
+    release_grades: ReleaseGrades = ReleaseGrades.immediately
+    show_missed_questions: bool = True
+    show_correct_answers: bool = False
+    show_point_values: bool = True
+    default_points: float = 10
+
+
+class PresentationSettings(BaseModel):
+    show_progress_bar: bool = True
+    shuffle_questions: bool = False
+    confirmation_message: str = "Your response has been recorded"
+    show_submit_another: bool = False
+    show_results_summary: bool = False
+    disable_autosave: bool = False
 
 
 # ── Create / Update ─────────────────────────────────────────
@@ -96,6 +122,8 @@ class FormCreate(BaseModel):
     questions: List[Question] = []
     status: FormStatus = FormStatus.draft
     branding: Optional[Branding] = None
+    quiz: Optional[QuizSettings] = None
+    presentation: Optional[PresentationSettings] = None
 
 
 class FormUpdate(BaseModel):
@@ -105,6 +133,8 @@ class FormUpdate(BaseModel):
     status: Optional[FormStatus] = None
     response_count: Optional[int] = None
     branding: Optional[Branding] = None
+    quiz: Optional[QuizSettings] = None
+    presentation: Optional[PresentationSettings] = None
 
 
 # ── Read / Response ──────────────────────────────────────────
@@ -118,6 +148,8 @@ class FormOut(BaseModel):
     response_count: int
     questions: Any  # JSON
     branding: Any   # JSON
+    quiz: Any
+    presentation: Any
     created_date: datetime
     updated_date: Optional[datetime] = None
 

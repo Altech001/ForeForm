@@ -50,6 +50,8 @@ export default function FormFill() {
   const [savedResponse, setSavedResponse] = useState(null);
 
   const branding = form?.branding || {};
+  const quiz = form?.quiz || {};
+  const presentation = form?.presentation || {};
   const allQuestions = form?.questions || [];
 
   // Evaluate conditional logic — a question is visible if it has no condition or the condition passes
@@ -125,9 +127,8 @@ export default function FormFill() {
       }
 
       const response = await base44.entities.FormResponse.create(responsePayload);
-      await base44.entities.Form.update(formId, { response_count: (form.response_count || 0) + 1 });
 
-      const fullResponse = { ...response, ...responsePayload };
+      const fullResponse = { ...responsePayload, ...response };
 
       if (respondentEmail) {
         await base44.integrations.Core.SendEmail({
@@ -252,7 +253,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
       </div>
 
       {/* Progress */}
-      {step !== INTRO_STEP && step !== DONE_STEP && (
+      {presentation.show_progress_bar !== false && step !== INTRO_STEP && step !== DONE_STEP && (
         <div className="w-full px-6 max-w-3xl mx-auto mb-2">
           <Progress value={progress} className="h-1.5" />
         </div>
@@ -292,7 +293,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                   )}
                   {validationError && <p className="text-sm text-destructive">{validationError}</p>}
                   <Button onClick={goNext} className="w-full h-12 text-base gap-2 rounded">
-                    Start Survey <ArrowRight className="w-4 h-4" />
+                    {quiz.enabled ? "Start Quiz" : "Start Survey"} <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
               </motion.div>
@@ -383,7 +384,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                   <p className="text-muted-foreground">
                     {savedResponse?._offline
                       ? "You're currently offline. Your response has been saved and will be automatically submitted when you reconnect."
-                      : <>Your response to <span className="font-medium text-foreground">{form.title}</span> has been recorded.</>}
+                      : presentation.confirmation_message || <>Your response to <span className="font-medium text-foreground">{form.title}</span> has been recorded.</>}
                   </p>
                   {!savedResponse?._offline && respondentEmail && <p className="text-sm text-muted-foreground mt-2">A copy has been sent to <span className="font-medium text-foreground">{respondentEmail}</span></p>}
                   {gps && (
@@ -392,9 +393,53 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                     </p>
                   )}
                 </div>
+                {quiz.enabled && savedResponse && !savedResponse?._offline && (
+                  <div className="max-w-md mx-auto border border-border rounded p-4 text-left space-y-3">
+                    {savedResponse.grades_released ? (
+                      <>
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-medium">Quiz score</p>
+                            {quiz.show_point_values !== false && (
+                              <p className="text-xs text-muted-foreground">{savedResponse.quiz_score ?? 0} / {savedResponse.quiz_max_score ?? 0} points</p>
+                            )}
+                          </div>
+                          <div className="text-2xl font-bold text-primary">{savedResponse.quiz_percent ?? 0}%</div>
+                        </div>
+                        {quiz.show_missed_questions !== false && (savedResponse.answers || []).some((a) => a.is_correct === false) && (
+                          <div className="space-y-2 pt-3 border-t border-border">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Missed questions</p>
+                            {(savedResponse.answers || []).filter((a) => a.is_correct === false).map((a, i) => (
+                              <div key={i} className="text-sm">
+                                <p className="font-medium">{a.question_label}</p>
+                                <p className="text-muted-foreground">Your answer: {a.answer || "No answer"}</p>
+                                {quiz.show_correct_answers && (
+                                  <p className="text-primary">Correct answer: {(questions.find((q) => q.id === a.question_id) || {}).correct_answer}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-medium">Grade pending</p>
+                          <p className="text-xs text-muted-foreground">Your quiz will be released after review.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {savedResponse && (
                   <Button variant="outline" className="gap-2 border-indigo-600 rounded text-indigo-600" onClick={() => downloadDocx(form, savedResponse)}>
                     <Download className="w-4 h-4" /> Download My Response (.docx)
+                  </Button>
+                )}
+                {presentation.show_submit_another && (
+                  <Button variant="ghost" onClick={() => window.location.reload()}>
+                    Submit another response
                   </Button>
                 )}
                 {branding.organization && <p className="text-xs text-muted-foreground pt-4">{branding.organization}</p>}

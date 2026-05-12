@@ -19,6 +19,8 @@ class Form(Base):
     response_count = Column(Integer, default=0)
     questions = Column(JSON, default=list)
     branding = Column(JSON, default=dict)
+    quiz = Column(JSON, default=dict)
+    presentation = Column(JSON, default=dict)
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
     updated_date = Column(
         DateTime,

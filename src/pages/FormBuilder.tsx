@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/foreform";
 import SEO from "@/components/SEO";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Save, Send, Link2, Eye, Upload, Settings2, Users } from "lucide-react";
+import { ArrowLeft, Plus, Save, Send, Link2, Eye, Upload, Settings2, Users, Layers, Trophy, SlidersHorizontal } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
@@ -16,7 +17,8 @@ import ImportPanel from "@/components/Panels/ImportPanel";
 import FormBrandingPanel from "@/components/forms/FormBrandingPanel";
 import TeamAccessPanel from "@/components/forms/TeamAccessPanel";
 import FormSectionsPanel from "@/components/forms/FormSectionsPanel";
-import { Layers } from "lucide-react";
+import QuizSettingsPanel from "@/components/forms/QuizSettingsPanel";
+import PresentationPanel from "@/components/forms/PresentationPanel";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -39,6 +41,8 @@ export default function FormBuilder() {
   const [questions, setQuestions] = useState([]);
   const [status, setStatus] = useState("draft");
   const [branding, setBranding] = useState<any>({});
+  const [quiz, setQuiz] = useState<any>({});
+  const [presentation, setPresentation] = useState<any>({});
   const [currentUser, setCurrentUser] = React.useState(null);
 
   React.useEffect(() => {
@@ -52,6 +56,8 @@ export default function FormBuilder() {
       setQuestions(form.questions || []);
       setStatus(form.status || "draft");
       setBranding(form.branding || {});
+      setQuiz(form.quiz || {});
+      setPresentation(form.presentation || {});
     }
   }, [form]);
 
@@ -66,12 +72,12 @@ export default function FormBuilder() {
 
   const handleSave = (newStatus?: string) => {
     const s = newStatus || status;
-    saveMutation.mutate({ title, description, questions, status: s, branding });
+    saveMutation.mutate({ title, description, questions, status: s, branding, quiz, presentation });
     if (newStatus) setStatus(newStatus);
   };
 
   const addQuestion = () => {
-    setQuestions([...questions, { id: generateId(), type: "short_text", label: "", required: false, options: [] }]);
+    setQuestions([...questions, { id: generateId(), type: "short_text", label: "", required: false, options: [], points: quiz.default_points ?? 10 }]);
   };
 
   const updateQuestion = (index, updated) => {
@@ -140,7 +146,9 @@ export default function FormBuilder() {
             <TabsList className="sm:w-auto inline-flex justify-start sm:justify-center min-w-max">
               <TabsTrigger value="questions">Questions</TabsTrigger>
               <TabsTrigger value="sections" className="gap-1.5"><Layers className="w-3.5 h-3.5" /> Sections</TabsTrigger>
-              <TabsTrigger value="settings" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" /> R & B</TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" /> Branding</TabsTrigger>
+              <TabsTrigger value="quiz" className="gap-1.5"><Trophy className="w-3.5 h-3.5" /> Quiz</TabsTrigger>
+              <TabsTrigger value="presentation" className="gap-1.5"><SlidersHorizontal className="w-3.5 h-3.5" /> Presentation</TabsTrigger>
               <TabsTrigger value="team" className="gap-1.5"><Users className="w-3.5 h-3.5" /> Teams</TabsTrigger>
             </TabsList>
           </div>
@@ -194,6 +202,8 @@ export default function FormBuilder() {
                               dragHandleProps={provided.dragHandleProps}
                               allQuestions={questions}
                               questionIndex={i}
+                              quizMode={quiz.enabled ?? false}
+                              defaultPoints={quiz.default_points ?? 10}
                             />
                           </div>
                         )}
@@ -228,6 +238,30 @@ export default function FormBuilder() {
               <FormBrandingPanel branding={branding} onChange={setBranding} />
               <Button onClick={() => handleSave()} disabled={saveMutation.isPending} className="mt-6 gap-2">
                 <Save className="w-4 h-4" /> Save Settings
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="quiz">
+            <div className="bg-card rounded p-4 sm:p-6">
+              <h2 className="font-semibold text-base mb-5 flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-primary" /> Quiz Settings
+              </h2>
+              <QuizSettingsPanel quiz={quiz} onChange={setQuiz} />
+              <Button onClick={() => handleSave()} disabled={saveMutation.isPending} className="mt-6 gap-2">
+                <Save className="w-4 h-4" /> Save Quiz
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="presentation">
+            <div className="bg-card rounded p-4 sm:p-6">
+              <h2 className="font-semibold text-base mb-5 flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-primary" /> Presentation Settings
+              </h2>
+              <PresentationPanel presentation={presentation} onChange={setPresentation} />
+              <Button onClick={() => handleSave()} disabled={saveMutation.isPending} className="mt-6 gap-2">
+                <Save className="w-4 h-4" /> Save Presentation
               </Button>
             </div>
           </TabsContent>

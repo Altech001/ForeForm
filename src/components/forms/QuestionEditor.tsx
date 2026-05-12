@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GripVertical, Trash2, Plus, X } from "lucide-react";
+import { CheckCircle, GripVertical, Hash, Trash2, Plus, X } from "lucide-react";
 import QuestionTypeIcon, { getQuestionTypeLabel } from "./QuestionTypeIcon";
 import ConditionalLogicEditor from "./ConditionalLogicEditor";
 
@@ -14,7 +14,7 @@ const QUESTION_TYPES = [
 
 const hasOptions = (type) => ["multiple_choice", "checkbox", "dropdown"].includes(type);
 
-export default function QuestionEditor({ question, onUpdate, onDelete, dragHandleProps, allQuestions, questionIndex }) {
+export default function QuestionEditor({ question, onUpdate, onDelete, dragHandleProps, allQuestions, questionIndex, quizMode = false, defaultPoints = 10 }) {
   const updateField = (field, value) => {
     onUpdate({ ...question, [field]: value });
   };
@@ -97,6 +97,49 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
               currentIndex={questionIndex}
               onChange={(condition) => updateField("condition", condition)}
             />
+          )}
+
+          {quizMode && (
+            <div className="flex flex-wrap items-center gap-4 px-3 py-3 bg-accent/20 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2">
+                <Hash className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium whitespace-nowrap">Points</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={question.points ?? defaultPoints ?? 10}
+                  onChange={(e) => updateField("points", Number(e.target.value))}
+                  className="w-20 h-8 text-center"
+                />
+              </div>
+              {hasOptions(question.type) ? (
+                <div className="flex items-center gap-2 flex-1 min-w-[16rem]">
+                  <CheckCircle className="w-4 h-4 text-primary" />
+                  <Label className="text-sm font-medium whitespace-nowrap">Correct answer</Label>
+                  <select
+                    value={question.correct_answer ?? ""}
+                    onChange={(e) => updateField("correct_answer", e.target.value)}
+                    className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">-- select --</option>
+                    {(question.options || []).map((opt, i) => (
+                      <option key={i} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1 min-w-[16rem]">
+                  <CheckCircle className="w-4 h-4 text-primary" />
+                  <Label className="text-sm font-medium whitespace-nowrap">Correct answer</Label>
+                  <Input
+                    value={question.correct_answer ?? ""}
+                    onChange={(e) => updateField("correct_answer", e.target.value)}
+                    placeholder="Expected answer..."
+                    className="flex-1 h-8"
+                  />
+                </div>
+              )}
+            </div>
           )}
 
           <div className="flex items-center justify-between pt-2 border-t border-border/50">

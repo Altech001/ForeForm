@@ -93,7 +93,8 @@ export const base44 = {
                 }
                 return [];
             },
-            create: (data: any) => fetchApi(`/forms/${data.form_id}/responses`, { method: 'POST', body: JSON.stringify(data) })
+            create: (data: any) => fetchApi(`/forms/${data.form_id}/responses`, { method: 'POST', body: JSON.stringify(data) }),
+            releaseGrades: (id: string) => fetchApi(`/responses/${id}/release-grades`, { method: 'PATCH' })
         },
         FormShare: {
             filter: async (opts: any) => {

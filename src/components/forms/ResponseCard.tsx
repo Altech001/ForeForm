@@ -1,7 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Clock, FileDown, Eye } from "lucide-react";
+import { Mail, Clock, FileDown, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 export default function ResponseCard({ response, onView, onDownload }) {
@@ -22,7 +22,14 @@ export default function ResponseCard({ response, onView, onDownload }) {
               )}
             </div>
           </div>
-          <p className="text-xs text-primary">{response.answers?.length || 0} answers</p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-primary">{response.answers?.length || 0} answers</p>
+            {response.quiz_percent != null && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {response.grades_released ? `${response.quiz_percent}%` : "Grade pending"}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col items-start sm:items-end gap-3 w-full sm:w-auto">

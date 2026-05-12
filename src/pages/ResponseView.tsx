@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, FileDown, User, Mail, Clock, MapPin, PenLine,
-  ChevronRight, Hash, Calendar, AlignLeft, CheckSquare, List, Type, AtSign
+  ChevronRight, Hash, Calendar, AlignLeft, CheckSquare, List, Type, AtSign,
+  CheckCircle2, XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { downloadDocx } from "@/lib/generateDocx";
@@ -222,6 +223,28 @@ export default function ResponseView() {
           )}
         </div>
 
+        {form?.quiz?.enabled && (
+          <div className="bg-card border border-border rounded p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-bold text-muted-foreground">Quiz Score</p>
+                {response.grades_released ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {response.quiz_score ?? 0} / {response.quiz_max_score ?? 0} points
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Grades are pending manual release.</p>
+                )}
+              </div>
+              {response.grades_released ? (
+                <div className="text-3xl font-bold text-primary">{response.quiz_percent ?? 0}%</div>
+              ) : (
+                <Badge variant="secondary">Pending</Badge>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Answers */}
         <div className="bg-card shadow rounded-none  p-6">
           <div className="flex items-center justify-between mb-5">
@@ -251,6 +274,17 @@ export default function ResponseView() {
                       <div className={`rounded px-4 py-3 text-sm ${a.answer ? "bg-accent/50 text-foreground" : "bg-muted/50 text-muted-foreground italic"}`}>
                         {a.answer || "No answer provided"}
                       </div>
+                      {a.is_correct !== undefined && a.is_correct !== null && (
+                        <div className={`mt-2 flex items-center gap-1.5 text-xs ${a.is_correct ? "text-green-600" : "text-destructive"}`}>
+                          {a.is_correct ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                          {a.is_correct ? "Correct" : "Incorrect"}
+                          {a.points_possible != null && (
+                            <span className="text-muted-foreground">
+                              {a.points_earned ?? 0} / {a.points_possible} pts
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

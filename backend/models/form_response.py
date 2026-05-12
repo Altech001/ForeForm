@@ -3,7 +3,7 @@ FormResponse model — stores individual form submissions.
 """
 import uuid
 import datetime
-from sqlalchemy import Column, String, Float, JSON, DateTime, ForeignKey
+from sqlalchemy import Column, String, Float, Boolean, JSON, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from db import Base
 
@@ -21,6 +21,10 @@ class FormResponse(Base):
     gps_accuracy = Column(Float)              # meters
     gps_address = Column(String)
     answers = Column(JSON, default=list)
+    quiz_score = Column(Float)
+    quiz_max_score = Column(Float)
+    quiz_percent = Column(Float)
+    grades_released = Column(Boolean, default=False)
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
     updated_date = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

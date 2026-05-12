@@ -36,10 +36,11 @@ def create_form(data: FormCreate, current_user: User = Depends(get_current_user)
     """Create a new form."""
     form_data = data.model_dump()
     # Convert nested Pydantic models to dicts for JSON columns
-    if form_data.get("branding"):
-        form_data["branding"] = data.branding.model_dump() if data.branding else {}
+    form_data["branding"] = data.branding.model_dump(mode="json") if data.branding else {}
+    form_data["quiz"] = data.quiz.model_dump(mode="json") if data.quiz else {}
+    form_data["presentation"] = data.presentation.model_dump(mode="json") if data.presentation else {}
     if form_data.get("questions"):
-        form_data["questions"] = [q.model_dump() for q in data.questions]
+        form_data["questions"] = [q.model_dump(mode="json") for q in data.questions]
     form = Form(**form_data, created_by=current_user.email)
     db.add(form)
     db.commit()
@@ -89,9 +90,13 @@ def update_form(
 
     # Serialize nested Pydantic models for JSON columns
     if "branding" in update_data and data.branding is not None:
-        update_data["branding"] = data.branding.model_dump()
+        update_data["branding"] = data.branding.model_dump(mode="json")
+    if "quiz" in update_data and data.quiz is not None:
+        update_data["quiz"] = data.quiz.model_dump(mode="json")
+    if "presentation" in update_data and data.presentation is not None:
+        update_data["presentation"] = data.presentation.model_dump(mode="json")
     if "questions" in update_data and data.questions is not None:
-        update_data["questions"] = [q.model_dump() for q in data.questions]
+        update_data["questions"] = [q.model_dump(mode="json") for q in data.questions]
 
     for key, value in update_data.items():
         setattr(form, key, value)
