@@ -66,7 +66,7 @@ export default function FormBuilder() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["form", formId] });
       queryClient.invalidateQueries({ queryKey: ["forms"] });
-      toast.success("Form saved!");
+      toast.success("Form saved!", );
     },
   });
 

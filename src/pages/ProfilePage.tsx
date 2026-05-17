@@ -5,6 +5,7 @@ import SEO from "@/components/SEO";
 import { ArrowRight, Loader2, CheckCircle2, ExternalLink, Unplug, CloudUpload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import AppHeader from "@/components/Header/AppHeader";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -115,38 +116,25 @@ export default function ProfilePage() {
     const sheetsInfo = getIntegration("google_sheets");
 
     return (
-        <div className="min-h-screen bg-[#fafafa] text-slate-900 selection:bg-slate-200">
+        <div className="min-h-screen bg-white text-slate-900 selection:bg-slate-200">
             <SEO title="Settings &amp; Profile" path="/profile" />
-
-            {/* Top Navigation (Z-Pattern Start) */}
-            <nav className="flex items-center justify-between p-8 md:p-12 max-w-7xl mx-auto w-full">
-                <button
-                    onClick={() => navigate("/")}
-                    className="text-[11px] font-semibold  text-red-400 hover:text-slate-900 transition-colors"
-                >
-                    ← Back to Dashboard
-                </button>
-                <div className="text-[11px] font-semibold  text-primary">
-                    Settings / Integrations
-                </div>
-            </nav>
-
+            <AppHeader />
             {/* Main Z-Pattern Flow */}
-            <main className="max-w-6xl mx-auto px-8 md:px-12 mt-12 mb-32 grid grid-cols-1 lg:grid-cols-[1fr_2.5fr] gap-20 items-start">
+            <main className="max-w-6xl mx-auto px-4 sm:px-8 md:px-12 mt-4 md:mt-12 mb-20 md:mb-32 grid grid-cols-1 lg:grid-cols-[1fr_2.5fr] gap-12 lg:gap-20 items-start">
 
                 {/* Left Column: Core Identity */}
                 <motion.aside
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    className="space-y-12 sticky top-20"
+                    className="space-y-8 md:space-y-12 lg:sticky top-20"
                 >
-                    <div className="space-y-6">
-                        <div className="w-20 h-20 bg-slate-200 flex items-center justify-center  text-xl font-light text-slate-500 rounded-full">
+                    <div className="space-y-4 md:space-y-6">
+                        <div className="w-16 h-16 md:w-20 md:h-20 bg-white border border-slate-100 flex items-center justify-center text-lg md:text-xl font-light text-slate-500 rounded-full">
                             {initials}
                         </div>
                         <div>
-                            <h1 className="text-4xl lg:text-5xl font-light  mb-2 text-slate-800">
+                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-light mb-1 md:mb-2 text-slate-800 break-words">
                                 {user.full_name || 'User'}
                             </h1>
                             <p className="text-slate-400 tracking-wide font-medium text-sm">
@@ -185,7 +173,7 @@ export default function ProfilePage() {
                 </motion.aside>
 
                 {/* Right Column: Configurations (Z-Pattern End) */}
-                <div className="space-y-24">
+                <div className="space-y-16 md:space-y-24">
 
                     {/* section: custom api keys */}
                     <motion.section
@@ -193,24 +181,21 @@ export default function ProfilePage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                     >
-                        <h2 className="text-[11px] font-bold uppercase  text-slate-300 mb-8 border-b border-slate-200 pb-4">
-                            AI Configuration
-                        </h2>
 
-                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 group">
+                        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8 group">
                             <div className="space-y-2 max-w-sm">
-                                <h3 className="text-xl font-light text-slate-800 ">Gemini AI Key</h3>
+                                <h3 className="text-lg md:text-xl font-light text-slate-800 ">Gemini AI Key</h3>
                                 <p className="text-sm text-slate-400 leading-relaxed">
                                     Link your personal Gemini API key to override the system defaults and unlock advanced generation models.
                                 </p>
                             </div>
-                            <div className="flex w-full md:w-auto items-center gap-6">
+                            <div className="flex w-full md:w-auto items-center gap-4 md:gap-6 mt-2 md:mt-0">
                                 <Input
                                     type="password"
                                     placeholder="Enter isolated API key"
-                                    className="bg-transparent border-b border-slate-300 py-2 focus:border-slate-800 transition-colors text-sm text-slate-700 placeholder:text-slate-300"
+                                    className="bg-transparent border-b border-slate-300 py-2 focus:border-slate-800 transition-colors text-sm text-slate-700 placeholder:text-slate-300 flex-1 md:flex-none md:w-64"
                                 />
-                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-indigo-500 transition-colors pb-2 border-b border-transparent hover:text-primary">
+                                <button className="text-[11px] font-bold uppercase  text-slate-400 hover:text-indigo-500 transition-colors pb-2 border-b border-transparent hover:text-primary shrink-0">
                                     Save
                                 </button>
                             </div>
@@ -227,7 +212,7 @@ export default function ProfilePage() {
                             Integrations &amp; Storage
                         </h2>
 
-                        <div className="space-y-16">
+                        <div className="space-y-8 md:space-y-16">
 
                             {/* ── Google Sheets Integration ─────────────── */}
                             <IntegrationCard
@@ -307,13 +292,15 @@ function IntegrationCard({
     const isConnected = info?.is_connected ?? false;
 
     return (
-        <div className="group">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                <div className="flex items-start gap-6">
-                    {icon}
+        <div className="group border border-slate-200 md:border-transparent p-5 md:p-0 rounded-2xl md:rounded-none">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-8">
+                <div className="flex items-start gap-4 md:gap-6">
+                    <div className="shrink-0 transform scale-90 md:scale-100 origin-top-left">
+                        {icon}
+                    </div>
                     <div className="space-y-2 max-w-sm">
-                        <div className="flex items-center gap-3">
-                            <h3 className={`text-xl font-light ${titleColor}`}>{title}</h3>
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                            <h3 className={`text-lg md:text-xl font-light ${titleColor}`}>{title}</h3>
                             {isConnected && (
                                 <motion.span
                                     initial={{ opacity: 0, scale: 0.8 }}
@@ -346,7 +333,7 @@ function IntegrationCard({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 mt-2 md:mt-0 pt-4 md:pt-0 border-t border-slate-100 md:border-transparent">
                     {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin text-slate-300" />
                     ) : isConnected ? (

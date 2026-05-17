@@ -1,4 +1,5 @@
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { queryClientInstance } from '@/lib/query-client';
@@ -28,17 +29,45 @@ import ViewTask from './pages/Tasks/ViewTask';
 import AgentPage from './pages/agent';
 import GoogleCallbackPage from './pages/GoogleCallbackPage';
 import AdminDashboard from './pages/AdminDashboard';
+import ConnectorsPage from './pages/connectors';
+
+const AppSkeletonLoader = () => (
+  <div className="fixed inset-0 bg-background flex z-50">
+    <div className="w-64 hidden md:flex flex-col p-6 space-y-6">
+      <Skeleton className="h-8 w-3/4 mb-4" />
+      <div className="space-y-4 mt-8">
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </div>
+    </div>
+    <div className="flex-1 flex flex-col">
+      <div className="h-16 flex items-center px-6 justify-between">
+        <Skeleton className="h-6 w-1/4" />
+        <div className="flex items-center space-x-4">
+          <Skeleton className="h-8 w-8 rounded-full" />
+        </div>
+      </div>
+      <div className="p-8 space-y-8 flex-1">
+        <Skeleton className="h-8 w-1/4" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
+        </div>
+        <Skeleton className="h-[400px] rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
 
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
   const { isAuthenticated, isLoadingAuth } = useAuth();
 
   if (isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
-      </div>
-    );
+    return <AppSkeletonLoader />;
   }
 
   if (!isAuthenticated) {
@@ -64,11 +93,7 @@ const AuthenticatedApp = () => {
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <AppSkeletonLoader />;
   }
 
   // Handle legacy auth errors (if any still trigger)
@@ -104,6 +129,7 @@ const AuthenticatedApp = () => {
           <Route path="/transactions" element={<MeriteTransactions />} />
           <Route path="/users" element={<MeriteUsers />} />
           <Route path="/agent" element={<AgentPage />} />
+          <Route path="/connectors" element={<ConnectorsPage />} />
           <Route path="/integrations/google/callback" element={<GoogleCallbackPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Route>
@@ -125,7 +151,7 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
-        <SonnerToaster richColors position="top-right" className="rounded-none" />
+        <SonnerToaster richColors position="top-center" className="rounded-none shadow-none" />
       </QueryClientProvider>
     </AuthProvider>
   )

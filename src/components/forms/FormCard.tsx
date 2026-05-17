@@ -1,9 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Eye, Pencil, Link2, BarChart3, Trash2, Layers } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MoreHorizontal, Eye, Pencil, Link2, BarChart3, Trash2, Layers, GripVertical, GripHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/foreform";
@@ -15,8 +25,9 @@ const statusConfig = {
   closed: { label: "Closed", className: "bg-destructive/10 text-destructive" },
 };
 
-export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) {
+export default function FormCard({ form, onDelete, onCopyLink, view = "list", dragHandleProps }: any) {
   const config = statusConfig[form.status] || statusConfig.draft;
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: sections = [] } = useQuery({
     queryKey: ["sections", form.id],
@@ -33,10 +44,15 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
   if (view === "grid") {
     return (
       <Card className="rounded p-6 shadow-none hover:shadow-xl transition-all duration-300 group border-border/60 flex flex-col h-full bg-card hover:border-primary/40 relative">
-        <div className="absolute top-4 right-4 z-20">
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-1 bg-card/80 backdrop-blur rounded shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          {dragHandleProps && (
+            <div {...dragHandleProps} className="text-muted-foreground/60 hover:text-foreground cursor-grab active:cursor-grabbing p-1.5 rounded hover:bg-muted/50">
+              <GripHorizontal className="w-4 h-4" />
+            </div>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -52,7 +68,7 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
                   <Link2 className="w-4 h-4 mr-2" />Copy Link
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive cursor-pointer">
+              <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive cursor-pointer">
                 <Trash2 className="w-4 h-4 mr-2" />Delete
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -61,19 +77,19 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
 
         <Link to={`/forms/${form.id}/edit`} className="flex flex-col flex-1 cursor-pointer">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 rounded border border-border/30 flex items-center justify-center bg-muted/20">
-              <img src="/form.png" alt="Form icon" className="w-7 h-7 object-contain drop-shadow-sm" />
+            <div className="w-12 h-12 rounded border border-border/30 flex items-center justify-center">
+              <img src={form.branding?.logo_url || "/form.png"} alt="Form icon" className="w-8 h-8 object-contain drop-shadow-sm" />
             </div>
             <Badge className={config.className} variant="secondary">{config.label}</Badge>
           </div>
 
-          <h3 className="font-semibold text-lg line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2 flex-1 mb-4">
+          <h4 className="font-semibold text-md line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h4>
+          <p className="text-xs text-muted-foreground line-clamp-2 flex-1 mb-4">
             {form.description || "No description provided"}
           </p>
 
           <div className="flex flex-col gap-3 pt-4 border-t border-border/40">
-            <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="flex items-center justify-between text-xs font-medium  text-primary">
               <div className="flex items-center gap-2">
                 <span>{totalQuestions} Questions</span>
                 {sectionCount > 0 && (
@@ -87,16 +103,29 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
             </span>
           </div>
         </Link>
+
+        <DeleteConfirmDialog
+          open={showDeleteConfirm}
+          onOpenChange={setShowDeleteConfirm}
+          formTitle={form.title}
+          onConfirm={() => { setShowDeleteConfirm(false); onDelete(form.id); }}
+        />
       </Card>
     );
   }
 
   return (
-    <Card className="rounded p-5 shadow-none hover:shadow-lg transition-all duration-300 group border-border/60 bg-card">
-      <div className="flex items-start justify-between gap-4">
-        <Link to={`/forms/${form.id}/edit`} className="flex items-start gap-4 flex-1 min-w-0">
-          <div className="w-14 h-14 rounded border border-border/30 flex shrink-0 items-center justify-center bg-muted/20">
-            <img src="/form.png" alt="Form icon" className="w-8 h-8 object-contain drop-shadow-sm" />
+    <Card className="rounded p-5 shadow-none hover:shadow-lg transition-all duration-300 group border-border/80 bg-card">
+      <div className="flex items-center gap-3">
+        {dragHandleProps && (
+          <div {...dragHandleProps} className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1">
+            <GripVertical className="w-5 h-5" />
+          </div>
+        )}
+        <div className="flex items-start justify-between gap-4 flex-1 min-w-0">
+          <Link to={`/forms/${form.id}/edit`} className="flex items-start gap-4 flex-1 min-w-0">
+            <div className="w-12 h-12 rounded border border-border/30 flex items-center justify-center shrink-0">
+            <img src={form.branding?.logo_url || "/form.png"} alt="Form icon" className="w-8 h-8 object-contain drop-shadow-sm" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -105,9 +134,9 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
                 {format(new Date(form.created_date), "MMM d, yyyy")}
               </span>
             </div>
-            <h3 className="font-semibold text-lg truncate mt-2 group-hover:text-primary transition-colors">{form.title}</h3>
+            <h4 className="font-semibold text-md line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h4>
             {form.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{form.description}</p>
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{form.description}</p>
             )}
             <div className="flex items-center gap-4 mt-3 text-sm font-medium">
               <span className="text-primary/80">{totalQuestions} questions</span>
@@ -137,12 +166,52 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list" }) 
                 <Link2 className="w-4 h-4 mr-2" />Copy Link
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive cursor-pointer">
+            <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="text-destructive cursor-pointer">
               <Trash2 className="w-4 h-4 mr-2" />Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+    </div>
+
+      <DeleteConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        formTitle={form.title}
+        onConfirm={() => { setShowDeleteConfirm(false); onDelete(form.id); }}
+      />
     </Card>
+  );
+}
+
+// ── Delete Confirmation Dialog ──────────────────────────────
+function DeleteConfirmDialog({ open, onOpenChange, formTitle, onConfirm }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formTitle: string;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="rounded border-border/60 bg-card">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="text-lg font-semibold">Delete form?</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-muted-foreground">
+            This will permanently delete <span className="font-semibold text-foreground">"{formTitle}"</span> and all of its responses. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="mt-4 gap-3">
+          <AlertDialogCancel className="rounded border-border/60 font-medium text-sm hover:bg-muted/60">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            className="rounded bg-destructive hover:bg-destructive/90 text-destructive-foreground font-medium text-sm"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
