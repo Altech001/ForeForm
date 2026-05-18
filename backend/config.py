@@ -12,9 +12,11 @@ class Settings:
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./uploads")
     FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
     SENDGRID_API_KEY: str = os.getenv("SENDGRID_API_KEY", "")
-    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "re_har25VMb_Ggk2z8woA97nWCRq5pa2EZah")
-    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    FROM_EMAIL: str = os.getenv("FROM_EMAIL", "beta@info.pitbox.fun")
+    FROM_NAME: str = os.getenv("FROM_NAME", "Beta")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    NVIDIA_API_KEY: str = os.getenv("NVIDIA_API_KEY", "")
 
     # Google OAuth2 for Drive / Sheets integrations
     GOOGLE_OAUTH_CLIENT_ID: str = os.getenv(

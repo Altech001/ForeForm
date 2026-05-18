@@ -36,6 +36,7 @@ interface ApiKeyEntry {
 }
 
 const PROVIDERS = [
+    { id: "nvidia", label: "NVIDIA Maxxie", icon: "✧", color: "text-lime-500", bg: "bg-lime-500/10" },
     { id: "gemini", label: "Google Gemini", icon: "✦", color: "text-blue-500", bg: "bg-blue-500/10" },
     { id: "openai", label: "OpenAI", icon: "◎", color: "text-emerald-500", bg: "bg-emerald-500/10" },
     { id: "anthropic", label: "Anthropic (Claude)", icon: "◈", color: "text-orange-500", bg: "bg-orange-500/10" },
@@ -255,7 +256,7 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                                 {[
                                                     { id: "auto", label: "Auto", desc: "Smart routing" },
-                                                    { id: "fast", label: "Fast", desc: "Quick & light" },
+                                                    { id: "fast", label: "Maxxie", desc: "Fast default" },
                                                     { id: "expert", label: "Expert", desc: "Deep thinking" },
                                                     { id: "heavy", label: "Heavy", desc: "Max power" },
                                                     { id: "groq", label: "Groq", desc: "Ultrafast" },
@@ -517,7 +518,7 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                                 </div>
                                                 <p className="text-sm font-bold text-muted-foreground">No API keys yet</p>
                                                 <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto">
-                                                    Add your own Gemini, OpenAI, or Anthropic key to get unlimited AI access and contribute to the community pool.
+                                                    Add your own NVIDIA, Gemini, OpenAI, or Anthropic key to get unlimited AI access and contribute to the community pool.
                                                 </p>
                                             </div>
                                         ) : (

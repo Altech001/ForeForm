@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit, ShieldCheck, ChevronsUpIcon, ChevronsDownIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import AppHeader from "@/components/Header/AppHeader";
 
 import { toast } from "sonner";

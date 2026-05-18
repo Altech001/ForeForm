@@ -5,6 +5,7 @@
 import React from "react";
 import { FileText, PenLine, MapPin } from "lucide-react";
 import { THEMES } from "@/lib/formThemes";
+import { isRichText, sanitizeRichTextHtml } from "@/lib/richText";
 
 function LogoOrIcon({ branding, size = "md", light = false }) {
   const sz = size === "lg" ? "h-16" : "h-10";
@@ -26,6 +27,19 @@ function OrgLabel({ branding, light = false }) {
   if (!branding.organization) return null;
   const cls = light ? "text-white/80 font-semibold text-xs " : "text-primary font-bold text-xs ";
   return <p className={cls}>{branding.organization}</p>;
+}
+
+function Description({ value, className = "" }) {
+  if (!value) return null;
+  const baseClass = `text-muted-foreground leading-relaxed ${className}`;
+  if (!isRichText(value)) return <p className={baseClass}>{value}</p>;
+
+  return (
+    <div
+      className={`${baseClass} space-y-2 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-foreground [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5`}
+      dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(value) }}
+    />
+  );
 }
 
 export default function FormHeader({ form, questions }) {
@@ -58,7 +72,7 @@ export default function FormHeader({ form, questions }) {
         {branding.appendix_label && <p className="text-xs text-muted-foreground mb-1 mt-1">{branding.appendix_label}</p>}
         <h1 className="text-xl font-bold mb-2 mt-1">{form.title}</h1>
         {branding.research_title && <p className="text-sm text-muted-foreground italic mb-3">{branding.research_title}</p>}
-        {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
+        <Description value={form.description} />
         {branding.ethics_statement && (
           <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/50 text-sm text-muted-foreground">
             {branding.ethics_statement}
@@ -83,7 +97,7 @@ export default function FormHeader({ form, questions }) {
         </div>
         <div className="p-8">
           {branding.appendix_label && <p className="text-xs text-muted-foreground mb-2">{branding.appendix_label}</p>}
-          {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
+          <Description value={form.description} />
           {branding.ethics_statement && (
             <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
@@ -108,7 +122,7 @@ export default function FormHeader({ form, questions }) {
           {branding.research_title && <p className="text-sm text-white/70 italic">{branding.research_title}</p>}
         </div>
         <div className="p-8">
-          {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
+          <Description value={form.description} />
           {branding.ethics_statement && (
             <div className="mt-4 p-3 bg-muted/60 rounded-none border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
@@ -135,7 +149,7 @@ export default function FormHeader({ form, questions }) {
           </div>
         </div>
         <div className="p-8">
-          {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
+          <Description value={form.description} />
           {branding.ethics_statement && (
             <div className="mt-4 p-3 bg-muted/60 rounded-lg border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
@@ -162,7 +176,7 @@ export default function FormHeader({ form, questions }) {
           {branding.appendix_label && <p className="text-xs text-muted-foreground mb-1">{branding.appendix_label}</p>}
           <h1 className="text-2xl font-bold mb-2">{form.title}</h1>
           {branding.research_title && <p className="text-sm text-muted-foreground italic mb-3">{branding.research_title}</p>}
-          {form.description && <p className="text-muted-foreground leading-relaxed text-sm">{form.description}</p>}
+          <Description value={form.description} className="text-sm" />
           {branding.ethics_statement && (
             <div className="mt-4 p-3 bg-muted/60 rounded-lg border-l-2 border-primary/30 text-sm text-muted-foreground">
               {branding.ethics_statement}
@@ -179,7 +193,7 @@ export default function FormHeader({ form, questions }) {
     <div className="bg-card border border-border rounded p-8 shadow-sm">
       <OrgLabel branding={branding} />
       <h1 className="text-2xl font-bold mb-2 mt-1">{form.title}</h1>
-      {form.description && <p className="text-muted-foreground leading-relaxed">{form.description}</p>}
+      <Description value={form.description} />
       {meta}
     </div>
   );

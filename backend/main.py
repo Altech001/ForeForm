@@ -23,6 +23,7 @@ from routers.google_integrations import router as google_integrations_router
 from routers.admin import router as admin_router
 from routers.google_sheet_upload import router as sheets_router
 from routers.drive_explorer import router as drive_explorer_router
+from routers.email import router as email_router
 
 # ── Create tables ────────────────────────────────────────────
 Base.metadata.create_all(bind=engine)
@@ -40,16 +41,16 @@ app = FastAPI(
 # ── CORS ─────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
+    allow_origins=list(dict.fromkeys([
         settings.FRONTEND_ORIGIN,
-        "*",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "https://foreform.vercel.app",
         "https://fore-form.vercel.app",
         "https://form.pitbox.fun",
-    ],
+        "https://pitbox.fun",
+    ])),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,6 +71,7 @@ app.include_router(google_integrations_router)
 app.include_router(admin_router)
 app.include_router(sheets_router)
 app.include_router(drive_explorer_router)
+app.include_router(email_router)
 
 
 # ── Health check ─────────────────────────────────────────────

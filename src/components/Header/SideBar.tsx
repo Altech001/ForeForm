@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "@/service/icon";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import { FCloud } from "@/constants/Icons";
 
 interface SideBarProps {

@@ -1,7 +1,37 @@
 import React from "react";
-import { User, Mail, Clock } from "lucide-react";
+import { FileDown, User, Mail, Clock, Star } from "lucide-react";
 import { format } from "date-fns";
 import { getQuestionTypeLabel } from "./QuestionTypeIcon";
+
+function renderAnswer(answer) {
+  if (answer.question_type === "file_upload" && answer.answer) {
+    try {
+      const file = JSON.parse(answer.answer);
+      return (
+        <span className="flex items-center gap-2">
+          <FileDown className="h-4 w-4 shrink-0 text-primary" />
+          <a href={file.file_url} target="_blank" rel="noreferrer" className="min-w-0 truncate font-medium text-primary hover:underline">
+            {file.file_name || "Uploaded file"}
+          </a>
+        </span>
+      );
+    } catch {
+      return answer.answer;
+    }
+  }
+  if (answer.question_type === "rating" && answer.answer) {
+    const rating = Number(answer.answer || 0);
+    return (
+      <span className="flex items-center gap-1 text-primary">
+        {[1, 2, 3, 4, 5].map((score) => (
+          <Star key={score} className={`h-4 w-4 ${score <= rating ? "fill-current" : "fill-transparent"}`} />
+        ))}
+        <span className="ml-2 text-sm font-medium text-foreground">{rating} / 5</span>
+      </span>
+    );
+  }
+  return answer.answer || <span className="text-muted-foreground italic">No answer</span>;
+}
 
 export default function ResponseDetail({ response }) {
   return (
@@ -33,7 +63,7 @@ export default function ResponseDetail({ response }) {
               </span>
             </div>
             <p className="font-medium text-sm mb-1">{a.question_label}</p>
-            <p className="text-foreground">{a.answer || <span className="text-muted-foreground italic">No answer</span>}</p>
+            <p className="text-foreground break-words">{renderAnswer(a)}</p>
           </div>
         ))}
       </div>

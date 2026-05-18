@@ -22,6 +22,8 @@ class QuestionType(str, Enum):
     date = "date"
     number = "number"
     email = "email"
+    file_upload = "file_upload"
+    rating = "rating"
 
 
 class ConditionOperator(str, Enum):
@@ -112,6 +114,7 @@ class PresentationSettings(BaseModel):
     show_submit_another: bool = False
     show_results_summary: bool = False
     disable_autosave: bool = False
+    collect_participant_details: bool = False
 
 
 # ── Create / Update ─────────────────────────────────────────

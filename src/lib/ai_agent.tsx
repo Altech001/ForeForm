@@ -10,8 +10,9 @@ import { base44 } from "@/api/foreform";
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 // Use local backend in dev, vercel in prod
-const CUSTOM_API_URL = import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/agent/chat/custom`
+const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "https://foreform.vercel.app/api");
+const CUSTOM_API_URL = API_BASE
+    ? `${API_BASE}/agent/chat/custom`
     : "https://foreform.vercel.app/api/agent/chat/custom";
 
 /**
@@ -87,7 +88,7 @@ export const FOREFORM_TOOLS: ToolDeclaration[] = [
     {
         name: "generate_form_questions",
         description:
-            "Generate structured form questions from a topic/description. Returns an array of question objects with id, label, type, required, and options fields. Types: short_text, long_text, multiple_choice, checkbox, dropdown, date, number, email.",
+            "Generate structured form questions from a topic/description. Returns an array of question objects with id, label, type, required, and options fields. Types: short_text, long_text, multiple_choice, checkbox, dropdown, date, number, email, file_upload, rating.",
         parameters: {
             type: "object",
             properties: {
@@ -484,7 +485,7 @@ export class ForeFormAgent {
     // ─── Gemini API Call ─────────────────────────────────────────
 
     private async callGemini(useSearch: boolean = false, modelOverride?: string): Promise<any> {
-        if (modelOverride === "groq" || modelOverride === "cerebras") {
+        if (modelOverride === "groq" || modelOverride === "cerebras" || modelOverride === "maxxie" || modelOverride === "nvidia" || modelOverride === "base44") {
             return await this.callCustomAPI(modelOverride);
         }
 
@@ -570,7 +571,7 @@ export class ForeFormAgent {
 
     // ─── Custom API Call (Groq / Cerebras) ───────────────────────
 
-    private async callCustomAPI(provider: "groq" | "cerebras"): Promise<any> {
+    private async callCustomAPI(provider: "groq" | "cerebras" | "maxxie" | "nvidia" | "base44"): Promise<any> {
         const body = {
             provider,
             config: this.config,
@@ -580,7 +581,7 @@ export class ForeFormAgent {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(localStorage.getItem("base44_access_token") ? { "Authorization": `Bearer ${localStorage.getItem("base44_access_token")}` } : {})
+                ...(localStorage.getItem("access_token") ? { "Authorization": `Bearer ${localStorage.getItem("access_token")}` } : {})
             },
             body: JSON.stringify(body),
         });
@@ -741,6 +742,14 @@ export async function quickPrompt(
     prompt: string,
     options?: { temperature?: number; maxTokens?: number; files?: { mimeType: string; data: string }[] }
 ): Promise<string> {
+    try {
+        const result = await base44.integrations.Core.InvokeLLM({ prompt });
+        if (typeof result === "string") return result;
+        if (result?.text) return result.text;
+    } catch (error) {
+        console.warn("Maxxie quickPrompt failed, falling back to Gemini", error);
+    }
+
     const parts: any[] = [{ text: prompt }];
 
     if (options?.files) {
@@ -793,7 +802,7 @@ Return ONLY valid JSON — no markdown, no explanation. Format:
   {
     "id": "q_xxx",
     "label": "Question text here",
-    "type": "short_text|long_text|multiple_choice|checkbox|dropdown|date|number|email",
+    "type": "short_text|long_text|multiple_choice|checkbox|dropdown|date|number|email|file_upload|rating",
     "required": true,
     "options": ["Option 1", "Option 2"]
   }
@@ -832,7 +841,7 @@ Return ONLY valid JSON — no markdown. Format:
       {
         "id": "q_xxx",
         "label": "Question text",
-        "type": "short_text|long_text|multiple_choice|checkbox|dropdown|date|number|email",
+        "type": "short_text|long_text|multiple_choice|checkbox|dropdown|date|number|email|file_upload|rating",
         "required": true,
         "options": []
       }

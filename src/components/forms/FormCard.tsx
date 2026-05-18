@@ -18,6 +18,7 @@ import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/foreform";
 import { useQuery } from "@tanstack/react-query";
+import { stripHtml } from "@/lib/richText";
 
 const statusConfig = {
   draft: { label: "Draft", className: "bg-muted text-muted-foreground" },
@@ -28,6 +29,7 @@ const statusConfig = {
 export default function FormCard({ form, onDelete, onCopyLink, view = "list", dragHandleProps }: any) {
   const config = statusConfig[form.status] || statusConfig.draft;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const plainDescription = stripHtml(form.description || "");
 
   const { data: sections = [] } = useQuery({
     queryKey: ["sections", form.id],
@@ -85,7 +87,7 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list", dr
 
           <h4 className="font-semibold text-md line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h4>
           <p className="text-xs text-muted-foreground line-clamp-2 flex-1 mb-4">
-            {form.description || "No description provided"}
+            {plainDescription || "No description provided"}
           </p>
 
           <div className="flex flex-col gap-3 pt-4 border-t border-border/40">
@@ -135,8 +137,8 @@ export default function FormCard({ form, onDelete, onCopyLink, view = "list", dr
               </span>
             </div>
             <h4 className="font-semibold text-md line-clamp-1 mb-1 group-hover:text-primary transition-colors">{form.title}</h4>
-            {form.description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{form.description}</p>
+            {plainDescription && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{plainDescription}</p>
             )}
             <div className="flex items-center gap-4 mt-3 text-sm font-medium">
               <span className="text-primary/80">{totalQuestions} questions</span>

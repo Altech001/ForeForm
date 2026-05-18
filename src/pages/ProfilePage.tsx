@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import { base44 } from "@/api/foreform";
 import SEO from "@/components/SEO";
 import { ArrowRight, Loader2, CheckCircle2, ExternalLink, Unplug, CloudUpload } from "lucide-react";

@@ -9,7 +9,7 @@ import QuestionTypeIcon, { getQuestionTypeLabel } from "./QuestionTypeIcon";
 import ConditionalLogicEditor from "./ConditionalLogicEditor";
 
 const QUESTION_TYPES = [
-  "short_text", "long_text", "multiple_choice", "checkbox", "dropdown", "date", "number", "email"
+  "short_text", "long_text", "multiple_choice", "checkbox", "dropdown", "date", "number", "email", "file_upload", "rating"
 ];
 
 const hasOptions = (type) => ["multiple_choice", "checkbox", "dropdown"].includes(type);

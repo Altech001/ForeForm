@@ -1,4 +1,4 @@
-import { LucideIcon, Type, AlignLeft, List, CheckSquare, Calendar, Mail, Hash } from "lucide-react";
+import { LucideIcon, Type, AlignLeft, List, CheckSquare, Calendar, Mail, Hash, Upload, Star } from "lucide-react";
 
 export type Phase = "prompt" | "editor";
 
@@ -36,6 +36,8 @@ export const QUESTION_TYPES: QuestionTypeInfo[] = [
     { value: "date", label: "Date", icon: Calendar },
     { value: "email", label: "Email", icon: Mail },
     { value: "number", label: "Number", icon: Hash },
+    { value: "file_upload", label: "File Upload", icon: Upload },
+    { value: "rating", label: "Rating", icon: Star },
 ];
 
 export const TYPE_MAP: Record<string, string> = Object.fromEntries(

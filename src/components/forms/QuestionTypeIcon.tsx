@@ -1,4 +1,4 @@
-import { Type, AlignLeft, CircleDot, CheckSquare, ChevronDown, Calendar, Hash, Mail } from "lucide-react";
+import { Type, AlignLeft, CircleDot, CheckSquare, ChevronDown, Calendar, Hash, Mail, Upload, Star } from "lucide-react";
 
 const iconMap = {
   short_text: Type,
@@ -9,6 +9,8 @@ const iconMap = {
   date: Calendar,
   number: Hash,
   email: Mail,
+  file_upload: Upload,
+  rating: Star,
 };
 
 const labelMap = {
@@ -20,6 +22,8 @@ const labelMap = {
   date: "Date",
   number: "Number",
   email: "Email",
+  file_upload: "File Upload",
+  rating: "Rating",
 };
 
 export function getQuestionTypeLabel(type) {

@@ -1,285 +1,383 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useAuth } from "@/lib/AuthContext";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/lib/useAuth";
+import { base44 } from "@/api/foreform";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Maximize2, Minimize2, Mic, Plus, MoreHorizontal, Send, Gem, Brain, RotateCcw, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+    BarChart3,
+    BookOpen,
+    Brain,
+    FileText,
+    Maximize2,
+    Mic,
+    Minimize2,
+    Navigation,
+    RotateCcw,
+    Search,
+    Send,
+    Sparkles,
+    Volume2,
+    VolumeX,
+    Wand2,
+    X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+
+type WidgetMessage = {
+    role: "user" | "assistant";
+    content: string;
+};
+
+const HELP_ACTIONS = [
+    { label: "Find forms", prompt: "Search through all my forms and show me the most important ones to review.", icon: Search },
+    { label: "Analyze forms", prompt: "Analyze my forms and tell me patterns, risks, missing fields, and next actions.", icon: BarChart3 },
+    { label: "Teach me", prompt: "Teach me how to use ForeForm step by step with clickable places to go.", icon: BookOpen },
+    { label: "Fix grammar", prompt: "Correct the grammar and wording of this text: ", icon: Wand2 },
+];
+
+const ROUTE_GUIDES = [
+    { label: "Dashboard", path: "/" },
+    { label: "AI Builder", path: "/complex-ai" },
+    { label: "Agent", path: "/agent" },
+    { label: "AI Respondents", path: "/ai-respondents" },
+    { label: "Profile", path: "/profile" },
+];
+
+function stripHtml(value = "") {
+    const el = document.createElement("div");
+    el.innerHTML = value;
+    return el.textContent || el.innerText || "";
+}
+
+function findMatchingForms(forms: any[], query: string) {
+    const terms = query.toLowerCase().split(/\s+/).filter((term) => term.length > 2);
+    if (terms.length === 0) return forms.slice(0, 6);
+
+    return forms
+        .map((form) => {
+            const questions = (form.questions || []).map((q: any) => q.label).join(" ");
+            const haystack = `${form.title || ""} ${stripHtml(form.description || "")} ${questions}`.toLowerCase();
+            const score = terms.reduce((sum, term) => sum + (haystack.includes(term) ? 1 : 0), 0);
+            return { form, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((item) => item.form)
+        .slice(0, 8);
+}
+
+function buildFormsContext(forms: any[], query: string) {
+    const matches = findMatchingForms(forms, query);
+    return matches.map((form) => ({
+        id: form.id,
+        title: form.title,
+        status: form.status,
+        responses: form.response_count || 0,
+        description: stripHtml(form.description || ""),
+        question_count: form.questions?.length || 0,
+        questions: (form.questions || []).slice(0, 10).map((q: any) => ({
+            label: q.label,
+            type: q.type,
+            required: q.required,
+        })),
+    }));
+}
 
 export default function ForeFormAIWidget() {
     const { user, isAuthenticated } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
 
     const [isChatStarted, setIsChatStarted] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const [inputText, setInputText] = useState("");
-    const [messages, setMessages] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
+    const [messages, setMessages] = useState<WidgetMessage[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isListening, setIsListening] = useState(false);
+    const [readAloud, setReadAloud] = useState(false);
 
-    const [extendedThinking, setExtendedThinking] = useState(false);
-    const [isMemoryOpen, setIsMemoryOpen] = useState(false);
-    const [memoryText, setMemoryText] = useState("My name is Abaasa Albert. I use this product for school to help me conduct research. I'm primarily looking for support with finding, understanding, and synthesizing information, organizing notes and sources, and turning research into clear summaries or drafts.");
-
+    const recognitionRef = useRef<any>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    if (!isAuthenticated || !user) return null;
-
-    // Don't show on login/signup pages
-    const excludedPatterns = [
-        "/login",
-        "/signup",
-        "/agent",
-        "/complex-ai",
-        "/bookmark-tasks",
-        "/bookmark-documents",
-        "/connectors",
-        "/forms/:id/edit"
-    ];
-
-    const isExcludedPage = excludedPatterns.some(pattern => {
-        const patternParts = pattern.split('/').filter(Boolean);
-        const pathParts = location.pathname.split('/').filter(Boolean);
-        if (patternParts.length !== pathParts.length) return false;
-        return patternParts.every((part, i) => part.startsWith(':') || part === pathParts[i]);
+    const { data: forms = [] } = useQuery({
+        queryKey: ["forms", "aitipsy"],
+        queryFn: () => base44.entities.Form.list(),
+        enabled: isAuthenticated,
+        staleTime: 60000,
     });
 
-    if (isExcludedPage) return null;
+    const excludedPatterns = ["/login", "/signup", "/agent", "/complex-ai", "/bookmark-tasks", "/bookmark-documents", "/connectors"];
+    const isExcludedPage = excludedPatterns.some((pattern) => {
+        const patternParts = pattern.split("/").filter(Boolean);
+        const pathParts = location.pathname.split("/").filter(Boolean);
+        if (patternParts.length !== pathParts.length) return false;
+        return patternParts.every((part, i) => part.startsWith(":") || part === pathParts[i]);
+    });
 
-    const handleSend = () => {
-        if (!inputText.trim()) return;
+    const suggestedForms = useMemo(() => findMatchingForms(forms, inputText || "published active response").slice(0, 3), [forms, inputText]);
 
-        if (!isChatStarted) {
-            setIsChatStarted(true);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoading]);
+
+    useEffect(() => {
+        return () => window.speechSynthesis?.cancel();
+    }, []);
+
+    if (!isAuthenticated || !user || isExcludedPage) return null;
+
+    const speak = (text: string) => {
+        if (!readAloud || !window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text.replace(/[#*_`>-]/g, ""));
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+    };
+
+    const startListening = () => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setMessages((prev) => [...prev, { role: "assistant", content: "Speech to text is not available in this browser yet. You can still type, and I can correct grammar or rewrite it." }]);
+            return;
         }
 
-        const newMessages = [...messages, { role: 'user', content: inputText }] as { role: 'user' | 'assistant', content: string }[];
-        setMessages(newMessages);
-        setInputText("");
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = false;
+        recognition.onresult = (event: any) => {
+            const transcript = Array.from(event.results).map((result: any) => result[0].transcript).join("");
+            setInputText(transcript);
+        };
+        recognition.onend = () => setIsListening(false);
+        recognition.onerror = () => setIsListening(false);
+        recognitionRef.current = recognition;
+        setIsListening(true);
+        recognition.start();
+    };
 
-        // Simulate AI response
-        setTimeout(() => {
-            setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `Hi ${user.full_name || 'there'}. I can help you build or edit ForeForm forms, set up automations, manage contacts, or answer questions about ForeForm features. What would you like to do?`
-            }]);
-        }, 1000);
+    const stopListening = () => {
+        recognitionRef.current?.stop();
+        setIsListening(false);
+    };
+
+    const handleNavigate = (path: string) => {
+        setIsChatStarted(false);
+        navigate(path);
+    };
+
+    const handleSend = async (overridePrompt?: string) => {
+        const prompt = (overridePrompt ?? inputText).trim();
+        if (!prompt || isLoading) return;
+
+        setIsChatStarted(true);
+        setMessages((prev) => [...prev, { role: "user", content: prompt }]);
+        setInputText("");
+        setIsLoading(true);
+
+        const formsContext = buildFormsContext(forms, prompt);
+        const guideContext = ROUTE_GUIDES.map((route) => `${route.label}: ${route.path}`).join("\n");
+
+        try {
+            const result = await base44.integrations.Core.InvokeLLM({
+                prompt: `You are Maxxie, the ForeForm work assistant. Help the user use ForeForm, search forms, analyze forms, navigate, and improve wording.
+
+Current user: ${user.full_name || user.email || "ForeForm user"}
+Current route: ${location.pathname}
+
+Available app routes:
+${guideContext}
+
+Relevant forms found from the user's workspace:
+${JSON.stringify(formsContext, null, 2)}
+
+Instructions:
+- Answer in concise markdown.
+- If teaching, give clickable-looking guide steps and mention exact pages.
+- If asked to search forms, list matched forms with title, status, response count, and what to open.
+- If asked to analyze, provide risks, patterns, and recommended fixes.
+- If asked for grammar or speech-to-text cleanup, correct the text and explain the main fixes briefly.
+- Do not invent forms not present in the context.
+
+User request:
+${prompt}`,
+            });
+
+            const content = typeof result === "string" ? result : result?.text || "I could not produce a response.";
+            setMessages((prev) => [...prev, { role: "assistant", content }]);
+            speak(content);
+        } catch (error: any) {
+            const fallback = `I could not reach Maxxie right now. You can still use these shortcuts:\n\n- Open **Dashboard** to find forms.\n- Open **AI Respondents** to generate synthetic responses.\n- Open **AI Builder** to create a form from a prompt.\n\nError: ${error?.message || "Unknown error"}`;
+            setMessages((prev) => [...prev, { role: "assistant", content: fallback }]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSend();
         }
     };
 
     const handleRestart = () => {
+        window.speechSynthesis?.cancel();
         setMessages([]);
         setIsChatStarted(false);
         setIsExpanded(false);
         setInputText("");
+        setIsLoading(false);
     };
 
-    // Reusable Input Area for both small and full states
     const inputAreaNode = (
-        <div className={`bg-white rounded-2xl border-2 border-primary/50 p-1 shadow transition-all ${isChatStarted ? '' : 'w-[320px]'}`}>
-            <div className="flex items-center gap-2 border border-primary/40 rounded-2xl px-3 py-4 bg-white">
-                <button className="text-gray-400 hover:text-gray-700 transition-colors">
-                    <Mic className="w-5 h-5" />
-                </button>
-
-                {isChatStarted && (
-                    <button className="text-gray-400 hover:text-gray-700 transition-colors">
-                        <Plus className="w-5 h-5" />
-                    </button>
-                )}
-
-                {isChatStarted && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="text-gray-400 hover:text-gray-700 transition-colors focus:outline-none">
-                                <MoreHorizontal className="w-5 h-5" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-64 p-2 rounded-xl border-gray-100 shadow-xl z-[60]">
-                            <div className="flex items-center justify-between px-2 py-2">
-                                <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-                                    <Gem className="w-4 h-4 text-emerald-500" />
-                                    <span>Extended Thinking</span>
-                                    <span className="w-4 h-4 rounded-full border border-gray-200 flex items-center justify-center text-[10px] text-gray-400 ml-1">?</span>
-                                </div>
-                                <Switch
-                                    checked={extendedThinking}
-                                    onCheckedChange={setExtendedThinking}
-                                    className="data-[state=checked]:bg-emerald-500"
-                                />
-                            </div>
-                            <DropdownMenuSeparator className="bg-gray-100 my-1" />
-                            <DropdownMenuItem
-                                onClick={() => setIsMemoryOpen(true)}
-                                className="px-2 py-2 cursor-pointer gap-2 text-gray-700 focus:bg-gray-50 rounded-lg"
-                            >
-                                <Brain className="w-4 h-4" />
-                                <span className="font-medium text-sm">ForeForm AI memory</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={handleRestart}
-                                className="px-2 py-2 cursor-pointer gap-2 text-gray-700 focus:bg-gray-50 rounded-lg"
-                            >
-                                <RotateCcw className="w-4 h-4" />
-                                <span className="font-medium text-sm">Restart chat</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )}
-
-                <input
-                    type="text"
+        <div className={`rounded border border-primary/30 bg-white p-2 shadow-sm ${isChatStarted ? "" : "w-[340px]"}`}>
+            <div className="flex items-end gap-2">
+                <Button type="button" variant="ghost" size="icon" className={isListening ? "text-primary" : "text-muted-foreground"} onClick={isListening ? stopListening : startListening} title="Speech to text">
+                    <Mic className="h-4 w-4" />
+                </Button>
+                <Textarea
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask ForeForm AI"
-                    className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder:text-gray-500 font-medium ml-1"
+                    placeholder="Ask Maxxie AI"
+                    className="min-h-10 flex-1 resize-none border-0 bg-transparent p-2 text-sm shadow-none focus-visible:ring-0"
+                    rows={1}
                 />
-
-                <button
-                    onClick={handleSend}
-                    disabled={!inputText.trim()}
-                    className={`transition-colors ${inputText.trim() ? 'text-purple-600 hover:text-purple-700' : 'text-gray-300'}`}
-                >
-                    <Send className="w-5 h-5" />
-                </button>
+                <Button type="button" size="icon" disabled={!inputText.trim() || isLoading} onClick={() => handleSend()} title="Send">
+                    <Send className="h-4 w-4" />
+                </Button>
             </div>
         </div>
     );
 
     return (
-        <>
-            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end font-sans">
-                <AnimatePresence mode="wait">
-                    {!isChatStarted ? (
-                        <motion.div
-                            key="input-only"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 10, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.3, type: "spring", bounce: 0.3 }}
-                            className="shadow-xl rounded-2xl"
-                        >
-                            {inputAreaNode}
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="chat-panel"
-                            initial={{ opacity: 0, scale: 0.9, y: 20, originX: 1, originY: 1 }}
-                            animate={{
-                                opacity: 1,
-                                scale: 1,
-                                y: 0,
-                                width: isExpanded ? 480 : 380,
-                                height: isExpanded ? 700 : 550
-                            }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20, transition: { duration: 0.15 } }}
-                            transition={{ duration: 0.4, type: "spring", bounce: 0.2 }}
-                            className="bg-white rounded-xl shadow-2xl border border-purple-100/60 flex flex-col overflow-hidden"
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 bg-white z-10">
-                                <div className="flex items-center gap-2">
-                                    <img src="/icons/ai.svg" className="w-5 h-5 text-purple-600" />
-                                    <span className="font-semibold text-gray-800 text-sm">ForeForm AI</span>
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end font-sans sm:bottom-6 sm:right-6">
+            <AnimatePresence mode="wait">
+                {!isChatStarted ? (
+                    <motion.div key="launcher" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}>
+                        <div className="hidden rounded shadow-xl sm:block">{inputAreaNode}</div>
+                        <Button onClick={() => setIsChatStarted(true)} className="h-14 w-14 rounded-full shadow-2xl sm:hidden" size="icon">
+                            <img src='/icons/ai.svg' alt="AI" className="h-10 w-10 object-contain invert saturate-200" />
+                        </Button>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        key="chat"
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0, width: isExpanded ? 520 : 400, height: isExpanded ? 720 : 590 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className="flex max-h-[86dvh] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded border border-border bg-white shadow-2xl"
+                    >
+                        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <div className="flex h-8 w-8 items-center justify-center">
+                                    <img src='/icons/ai.svg' alt="AI" className="h-10 w-10 object-contain" />
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setIsExpanded(!isExpanded)}
-                                        className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-md hover:bg-gray-100"
-                                    >
-                                        {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsChatStarted(false)}
-                                        className="text-gray-400 hover:text-gray-700 transition-colors p-1.5 rounded-md hover:bg-gray-100"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </button>
+                                <div>
+                                    <p className="text-sm font-semibold">Maxxie</p>
+                                    <p className="text-[11px] text-muted-foreground">ForeForm AI</p>
                                 </div>
                             </div>
+                            <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setReadAloud((value) => !value)} title="Read answers aloud">
+                                    {readAloud ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsExpanded((value) => !value)}>
+                                    {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleRestart}>
+                                    <RotateCcw className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsChatStarted(false)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
 
-                            {/* Chat Area */}
-                            <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-white">
-                                {messages.map((msg, idx) => (
-                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div
-                                            className={`max-w-[85%] px-4 py-3 text-[14px] leading-relaxed shadow-sm ${msg.role === 'user'
-                                                ? 'bg-gray-50 text-gray-800 rounded-2xl rounded-tr-sm border border-gray-100'
-                                                : 'bg-purple-50/50 text-gray-800 rounded-2xl rounded-tl-sm border border-purple-100/50'
-                                                }`}
-                                        >
-                                            {msg.content}
-                                        </div>
-                                    </div>
+                        <div className="border-b border-border/60 px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                                {HELP_ACTIONS.map((action) => {
+                                    const Icon = action.icon;
+                                    return (
+                                        <Button key={action.label} variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleSend(action.prompt)}>
+                                            <Icon className="h-3.5 w-3.5" />
+                                            {action.label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {ROUTE_GUIDES.map((route) => (
+                                    <Button key={route.path} variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground" onClick={() => handleNavigate(route.path)}>
+                                        <Navigation className="h-3 w-3" />
+                                        {route.label}
+                                    </Button>
                                 ))}
-                                <div ref={messagesEndRef} />
                             </div>
+                        </div>
 
-                            {/* Input Area */}
-                            <div className="p-4 bg-white border-t border-gray-50">
-                                {inputAreaNode}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+                        <div className="flex-1 space-y-4 overflow-y-auto bg-muted/20 p-4">
+                            {messages.length === 0 && (
+                                <div className="rounded border border-dashed border-border bg-white p-4 text-sm text-muted-foreground">
+                                    <p className="font-medium text-foreground">What I can do</p>
+                                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                                        <li>Search and summarize forms in your workspace.</li>
+                                        <li>Analyze question quality, missing fields, response patterns, and next actions.</li>
+                                        <li>Guide you through ForeForm pages with quick navigation.</li>
+                                        <li>Listen to speech, clean grammar, and read answers aloud.</li>
+                                    </ul>
+                                </div>
+                            )}
 
-            {/* Memory Modal */}
-            <Dialog open={isMemoryOpen} onOpenChange={setIsMemoryOpen}>
-                <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0 bg-white border-gray-200 font-sans z-[70]">
-                    <div className="px-6 py-5">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-semibold text-gray-800">ForeForm AI memory</DialogTitle>
-                            <p className="text-sm text-gray-500 mt-1.5">Manage the information ForeForm AI uses to personalize your experience.</p>
-                        </DialogHeader>
-                    </div>
+                            {suggestedForms.length > 0 && messages.length === 0 && (
+                                <div className="rounded border border-border bg-white p-3">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent form shortcuts</p>
+                                    <div className="space-y-2">
+                                        {suggestedForms.map((form: any) => (
+                                            <button key={form.id} onClick={() => handleNavigate(`/forms/${form.id}/edit`)} className="flex w-full items-center gap-2 rounded px-2 py-2 text-left hover:bg-muted">
+                                                <FileText className="h-4 w-4 text-primary" />
+                                                <span className="min-w-0 flex-1 truncate text-sm font-medium">{form.title}</span>
+                                                <span className="text-xs text-muted-foreground">{form.response_count || 0} responses</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
-                    <div className="px-6 py-2">
-                        <Textarea
-                            value={memoryText}
-                            onChange={(e) => setMemoryText(e.target.value)}
-                            className="min-h-[220px] resize-none border-gray-200 focus-visible:ring-purple-500 text-gray-700 bg-white text-[15px] p-4 leading-relaxed rounded-xl shadow-sm"
-                        />
-                    </div>
+                            {messages.map((message, index) => (
+                                <div key={index} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                                    <div className={`max-w-[88%] rounded px-4 py-3 text-sm leading-relaxed shadow-sm ${message.role === "user" ? "bg-primary text-primary-foreground" : "border border-border bg-white text-foreground"}`}>
+                                        {message.role === "assistant" ? (
+                                            <div className="prose prose-sm max-w-none prose-a:text-primary prose-ul:my-2 prose-ol:my-2">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            message.content
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="flex justify-start">
+                                    <div className="flex items-center gap-2 rounded border border-border bg-white px-4 py-3 text-sm text-muted-foreground shadow-sm">
+                                        <Sparkles className="h-4 w-4 animate-pulse text-primary" />
+                                        Maxxie is thinking...
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
 
-                    <DialogFooter className="px-6 py-5 mt-2 flex justify-end gap-3">
-                        <Button variant="ghost" onClick={() => setIsMemoryOpen(false)} className="text-gray-600 font-medium hover:bg-gray-100 hover:text-gray-900 px-5">
-                            Cancel
-                        </Button>
-                        <Button onClick={() => setIsMemoryOpen(false)} className="bg-[#3A3541] hover:bg-[#2A2631] text-white font-medium px-6 rounded-lg shadow-md transition-all">
-                            Save changes
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+                        <div className="border-t border-border bg-white p-3">{inputAreaNode}</div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }

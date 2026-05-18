@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { LayoutList, Shuffle, MessageSquare, RefreshCw, BarChart2, Lock, Pencil, type LucideIcon } from "lucide-react";
+import { LayoutList, Shuffle, MessageSquare, RefreshCw, BarChart2, Lock, Pencil, UserRound, type LucideIcon } from "lucide-react";
 
 type PresentationSettings = {
   show_progress_bar?: boolean;
@@ -12,6 +12,7 @@ type PresentationSettings = {
   show_submit_another?: boolean;
   show_results_summary?: boolean;
   disable_autosave?: boolean;
+  collect_participant_details?: boolean;
 };
 
 type PresentationPanelProps = {
@@ -49,6 +50,7 @@ export default function PresentationPanel({ presentation = {}, onChange }: Prese
     show_submit_another: presentation.show_submit_another ?? false,
     show_results_summary: presentation.show_results_summary ?? false,
     disable_autosave: presentation.disable_autosave ?? false,
+    collect_participant_details: presentation.collect_participant_details ?? false,
   };
 
   const update = <K extends keyof PresentationSettings>(field: K, value: PresentationSettings[K]) => onChange({ ...s, [field]: value });
@@ -64,6 +66,9 @@ export default function PresentationPanel({ presentation = {}, onChange }: Prese
           </Row>
           <Row icon={Shuffle} label="Shuffle question order" desc="">
             <Switch checked={s.shuffle_questions} onCheckedChange={(v) => update("shuffle_questions", v)} />
+          </Row>
+          <Row icon={UserRound} label="Collect participant details" desc="Saved immediately. Turn off to start respondents at the first question.">
+            <Switch checked={s.collect_participant_details} onCheckedChange={(v) => update("collect_participant_details", v)} />
           </Row>
         </div>
       </div>

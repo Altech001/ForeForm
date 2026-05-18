@@ -13,6 +13,7 @@ from auth.jwt import get_current_user
 from models.user import User
 from models.agent_session import AgentSession
 from models.api_key import ApiKey
+from services.nvidia_ai import MaxxieAI, NvidiaAIError
 from schemas.agent import (
     AgentSessionCreate, AgentSessionUpdate, AgentSessionOut, AgentSessionSummary,
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyFull,
@@ -345,7 +346,7 @@ def custom_chat(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Fallback custom chat endpoint for Groq and Cerebras using OpenAI/Cerebras SDK."""
+    """Fallback custom chat endpoint for Maxxie, Groq, and Cerebras."""
     openai_messages = []
     
     system_instruction = data.config.get("systemInstruction") if data.config else None
@@ -415,7 +416,35 @@ def custom_chat(
                 return key.api_key
             return None
 
-        if data.provider == "groq":
+        if data.provider in ("maxxie", "nvidia", "base44"):
+            api_key = get_resolved_key("nvidia") or os.environ.get("NVIDIA_API_KEY")
+            if not api_key:
+                raise NvidiaAIError("NVIDIA_API_KEY is not configured")
+
+            maxxie = MaxxieAI(api_key)
+            result = maxxie.chat(
+                openai_messages,
+                temperature=float(data.config.get("temperature", 0.6)) if data.config else 0.6,
+                max_tokens=min(int(data.config.get("maxOutputTokens", 8192)) if data.config else 8192, 16384),
+                reasoning_budget=int(data.config.get("reasoningBudget", 2048)) if data.config else 2048,
+                tools=openai_tools,
+            )
+            if result.get("content"):
+                output_parts.append({"text": result["content"]})
+            if result.get("tool_calls"):
+                for tc in result["tool_calls"]:
+                    try:
+                        args = json.loads(tc.function.arguments)
+                    except Exception:
+                        args = {}
+                    output_parts.append({
+                        "functionCall": {
+                            "name": tc.function.name,
+                            "args": args,
+                        }
+                    })
+
+        elif data.provider == "groq":
             api_key = get_resolved_key("groq") or os.environ.get("GROQ_API_KEY")
             
             client = OpenAI(
@@ -456,4 +485,3 @@ def custom_chat(
         raise HTTPException(status_code=500, detail=str(e))
 
     return {"parts": output_parts}
-

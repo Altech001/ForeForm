@@ -1,16 +1,19 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { appParams } from '@/lib/app-params';
 
-const API_BASE = 'https://foreform.vercel.app/api';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://foreform.vercel.app/api';
 
 function getToken() {
-    return localStorage.getItem('base44_access_token') || appParams.token;
+    return localStorage.getItem('access_token') || appParams.token;
 }
 
 function setToken(token: string) {
-    localStorage.setItem('base44_access_token', token);
+    localStorage.setItem('access_token', token);
 }
 
 function clearToken() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('token');
     localStorage.removeItem('base44_access_token');
 }
 
@@ -63,7 +66,7 @@ export const base44 = {
         }),
         logout: (redirectUrl?: string) => {
             clearToken();
-            if (redirectUrl) window.location.href = redirectUrl;
+            window.location.href = redirectUrl || '/login';
         },
         redirectToLogin: (currentUrl?: string) => {
             clearToken();
@@ -72,12 +75,12 @@ export const base44 = {
     },
     entities: {
         Form: {
-            list: () => fetchApi('/forms'),
+            list: () => fetchApi('/forms/'),
             filter: async (opts: any) => {
                 if (opts.id) {
                     return [await fetchApi(`/forms/${opts.id}`)];
                 }
-                return await fetchApi('/forms');
+                return await fetchApi('/forms/');
             },
             create: (data: any) => fetchApi('/forms/', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, data: any) => fetchApi(`/forms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -177,12 +180,20 @@ export const base44 = {
                 return res.questions;
             },
             InvokeLLM: async (args: { prompt: string; response_json_schema?: any }) => {
-                const body: any = { text: args.prompt };
+                const body: any = { prompt: args.prompt };
                 if (args.response_json_schema) body.response_json_schema = args.response_json_schema;
-                const res = await fetchApi('/ai/extract-questions', { method: 'POST', body: JSON.stringify(body) });
-                return JSON.stringify({ questions: res.questions });
+                const res = await fetchApi('/ai/chat', { method: 'POST', body: JSON.stringify(body) });
+                return res.text || res;
             },
-            SendEmail: async (args: any) => { return true; }
+            SendEmail: async (args: any) => fetchApi('/email/send', {
+                method: 'POST',
+                body: JSON.stringify({
+                    to: Array.isArray(args.to) ? args.to : [args.to],
+                    subject: args.subject,
+                    html: args.html || args.body,
+                    body: args.body,
+                })
+            })
         },
         Google: {
             getAuthUrl: (provider: string) => {

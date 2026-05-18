@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, Plus, Grid3X3 } from "lucide-react";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import { Button } from "@/components/ui/button";
 import SideBar from "./SideBar";
 import {

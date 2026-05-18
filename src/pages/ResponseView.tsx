@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, FileDown, User, Mail, Clock, MapPin, PenLine,
   ChevronRight, Hash, Calendar, AlignLeft, CheckSquare, List, Type, AtSign,
-  CheckCircle2, XCircle
+  CheckCircle2, XCircle, Star
 } from "lucide-react";
 import { format } from "date-fns";
 import { downloadDocx } from "@/lib/generateDocx";
@@ -22,6 +22,8 @@ const TYPE_ICONS = {
   date: Calendar,
   number: Hash,
   email: AtSign,
+  file_upload: FileDown,
+  rating: Star,
 };
 
 const TYPE_LABELS = {
@@ -33,7 +35,39 @@ const TYPE_LABELS = {
   date: "Date",
   number: "Number",
   email: "Email",
+  file_upload: "File Upload",
+  rating: "Rating",
 };
+
+function renderAnswer(answer: any) {
+  if (answer.question_type === "file_upload" && answer.answer) {
+    try {
+      const file = JSON.parse(answer.answer);
+      return (
+        <div className="flex items-center gap-3">
+          <FileDown className="h-4 w-4 shrink-0 text-primary" />
+          <a href={file.file_url} target="_blank" rel="noreferrer" className="min-w-0 truncate font-medium text-primary hover:underline">
+            {file.file_name || "Uploaded file"}
+          </a>
+        </div>
+      );
+    } catch {
+      return answer.answer;
+    }
+  }
+  if (answer.question_type === "rating" && answer.answer) {
+    const rating = Number(answer.answer || 0);
+    return (
+      <div className="flex items-center gap-1 text-primary">
+        {[1, 2, 3, 4, 5].map((score) => (
+          <Star key={score} className={`h-4 w-4 ${score <= rating ? "fill-current" : "fill-transparent"}`} />
+        ))}
+        <span className="ml-2 text-sm font-medium text-foreground">{rating} / 5</span>
+      </div>
+    );
+  }
+  return answer.answer || "No answer provided";
+}
 
 export default function ResponseView() {
   const { formId, responseId } = useParams();
@@ -271,8 +305,8 @@ export default function ResponseView() {
                         </span>
                       </div>
                       <p className="font-medium text-sm text-foreground mb-2">{a.question_label}</p>
-                      <div className={`rounded px-4 py-3 text-sm ${a.answer ? "bg-accent/50 text-foreground" : "bg-muted/50 text-muted-foreground italic"}`}>
-                        {a.answer || "No answer provided"}
+                      <div className={`rounded px-4 py-3 text-sm break-words ${a.answer ? "bg-accent/50 text-foreground" : "bg-muted/50 text-muted-foreground italic"}`}>
+                        {renderAnswer(a)}
                       </div>
                       {a.is_correct !== undefined && a.is_correct !== null && (
                         <div className={`mt-2 flex items-center gap-1.5 text-xs ${a.is_correct ? "text-green-600" : "text-destructive"}`}>

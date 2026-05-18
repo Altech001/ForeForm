@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/foreform";
+import FormHeader from "@/components/forms/FormHeader";
+import OfflineBanner from "@/components/forms/OfflineBanner";
+import QuestionRenderer from "@/components/forms/QuestionRenderer";
+import SignaturePad from "@/components/forms/SignaturePad";
 import SEO from "@/components/SEO";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, FileText, AlertCircle, ArrowRight, ArrowLeft, Send, Download, MapPin, Loader2, VerifiedIcon } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useParams } from "react-router-dom";
-import QuestionRenderer from "@/components/forms/QuestionRenderer";
-import SignaturePad from "@/components/forms/SignaturePad";
-import FormHeader from "@/components/forms/FormHeader";
-import { downloadDocx, generateDocxBlob } from "@/lib/generateDocx";
+import { downloadDocx } from "@/lib/generateDocx";
 import { savePendingResponse } from "@/lib/offlineDB";
+import { stripHtml } from "@/lib/richText";
 import { requestBackgroundSync } from "@/lib/serviceWorker";
-import OfflineBanner from "@/components/forms/OfflineBanner";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, ArrowLeft, ArrowRight, Download, Loader2, MapPin, Send, VerifiedIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 const INTRO_STEP = "intro";
 const SIGN_STEP = "sign";
@@ -53,6 +54,7 @@ export default function FormFill() {
   const quiz = form?.quiz || {};
   const presentation = form?.presentation || {};
   const allQuestions = form?.questions || [];
+  const collectParticipantDetails = presentation.collect_participant_details ?? presentation.collectParticipantDetails ?? false;
 
   // Evaluate conditional logic — a question is visible if it has no condition or the condition passes
   const evaluateCondition = (condition, currentAnswers) => {
@@ -109,11 +111,13 @@ export default function FormFill() {
           question_type: q.type,
           answer: answers[q.id] || "",
         }));
+      const questionEmail = formattedAnswers.find((answer) => answer.question_type === "email" && answer.answer)?.answer || "";
+      const effectiveRespondentEmail = respondentEmail || questionEmail;
 
       const responsePayload = {
         form_id: formId,
-        respondent_name: respondentName,
-        respondent_email: respondentEmail,
+        respondent_name: collectParticipantDetails ? respondentName : "",
+        respondent_email: effectiveRespondentEmail,
         answers: formattedAnswers,
         ...(signature ? { signature_data_url: signature } : {}),
         ...(gps ? { gps_latitude: gps.lat, gps_longitude: gps.lng, gps_accuracy: gps.accuracy } : {}),
@@ -130,21 +134,6 @@ export default function FormFill() {
 
       const fullResponse = { ...responsePayload, ...response };
 
-      if (respondentEmail) {
-        await base44.integrations.Core.SendEmail({
-          to: respondentEmail,
-          subject: `Your response to "${form.title}"`,
-          body: `
-Hi ${respondentName || "there"},<br/><br/>
-Thank you for completing <b>${form.title}</b>${branding.research_title ? ` — <i>${branding.research_title}</i>` : ""}.<br/><br/>
-<b>Summary of your responses:</b><br/><br/>
-${formattedAnswers.map((a, i) => `<b>${i + 1}. ${a.question_label}</b><br/>${a.answer || "—"}`).join("<br/><br/>")}
-${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}` : ""}
-<br/><br/>Best regards,<br/>${branding.organization || "FormFlow"}
-          `.trim(),
-        });
-      }
-
       return fullResponse;
     },
     onSuccess: (response) => {
@@ -156,7 +145,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
   const goNext = () => {
     if (step === INTRO_STEP) {
-      if (!respondentName.trim()) { setValidationError("Please enter your name"); return; }
+      if (collectParticipantDetails && !respondentName.trim()) { setValidationError("Please enter your name"); return; }
       if (branding.consent_text && !consentChecked) { setValidationError("Please accept the consent statement to continue"); return; }
       setValidationError(""); setDirection(1); setStep(0); return;
     }
@@ -224,7 +213,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SEO title={form?.title || "Form"} description={form?.description || undefined} path={`/f/${formId}`} />
+      <SEO title={form?.title || "Form"} description={stripHtml(form?.description || "") || undefined} path={`/f/${formId}`} />
       <OfflineBanner />
       {/* Top bar */}
       <div className="w-full px-6 py-4 flex items-center justify-between max-w-3xl mx-auto">
@@ -270,15 +259,19 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                 <FormHeader form={form} questions={questions} />
 
                 <div className="bg-card border border-border rounded p-8 shadow-none space-y-5" onKeyDown={handleKeyDown}>
-                  <h2 className="font-semibold">Participant Details</h2>
-                  <div className="space-y-1.5">
-                    <Label>Full Name <span className="text-destructive">*</span></Label>
-                    <Input value={respondentName} onChange={(e) => { setRespondentName(e.target.value); setValidationError(""); }} placeholder="Your full name" className="h-11" autoFocus />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Email Address <span className="text-muted-foreground text-xs">(response copy sent here)</span></Label>
-                    <Input type="email" value={respondentEmail} onChange={(e) => setRespondentEmail(e.target.value)} placeholder="prpt@foreform.com" className="h-11" />
-                  </div>
+                  <h2 className="font-semibold">{collectParticipantDetails ? "Participant Details" : "Ready to begin"}</h2>
+                  {collectParticipantDetails && (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label>Full Name <span className="text-destructive">*</span></Label>
+                        <Input value={respondentName} onChange={(e) => { setRespondentName(e.target.value); setValidationError(""); }} placeholder="Your full name" className="h-11" autoFocus />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Email Address <span className="text-muted-foreground text-xs">(response copy sent here)</span></Label>
+                        <Input type="email" value={respondentEmail} onChange={(e) => setRespondentEmail(e.target.value)} placeholder="prpt@foreform.com" className="h-11" />
+                      </div>
+                    </>
+                  )}
                   {branding.consent_text && (
                     <div className="flex items-start gap-3 p-4 bg-transparent rounded border border-primary/40">
                       <input
@@ -386,7 +379,7 @@ ${gps ? `<br/><br/><b>Location recorded:</b> ${gps.lat.toFixed(5)}, ${gps.lng.to
                       ? "You're currently offline. Your response has been saved and will be automatically submitted when you reconnect."
                       : presentation.confirmation_message || <>Your response to <span className="font-medium text-foreground">{form.title}</span> has been recorded.</>}
                   </p>
-                  {!savedResponse?._offline && respondentEmail && <p className="text-sm text-muted-foreground mt-2">A copy has been sent to <span className="font-medium text-foreground">{respondentEmail}</span></p>}
+                  {!savedResponse?._offline && savedResponse?.respondent_email && <p className="text-sm text-muted-foreground mt-2">A copy has been sent to <span className="font-medium text-foreground">{savedResponse.respondent_email}</span></p>}
                   {gps && (
                     <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
                       <MapPin className="w-3 h-3" />Location recorded: {gps.lat.toFixed(4)}, {gps.lng.toFixed(4)}

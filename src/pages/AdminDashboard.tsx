@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/foreform";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import SEO from "@/components/SEO";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";

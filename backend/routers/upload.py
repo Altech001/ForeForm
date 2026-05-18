@@ -1,14 +1,12 @@
 import os
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from models.user import User
-from auth.jwt import get_current_user
+from fastapi import APIRouter, UploadFile, File, HTTPException
 from uploads.cloudary import upload_to_cloudary
 
 router = APIRouter(prefix="/api", tags=["upload"])
 
 ALLOWED_EXTENSIONS = {
-    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg",  # images
-    ".pdf", ".xlsx", ".xls", ".csv", ".docx",         # documents
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico",  # images
+    ".pdf", ".xlsx", ".xls", ".csv", ".docx", ".doc", ".txt", ".pptx", ".ppt",  # documents
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -16,7 +14,6 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
 ):
     """
     Upload a file (logo, PDF, spreadsheet, etc.) to Cloudinary.

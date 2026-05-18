@@ -102,7 +102,14 @@ def submit_response(
     
     # Send confirmation email to respondent_email using Resend
     if response.respondent_email:
-        background_tasks.add_task(send_response_confirmation_email, response.respondent_email, form.title)
+        background_tasks.add_task(
+            send_response_confirmation_email,
+            response.respondent_email,
+            form.title,
+            response_data.get("answers", []),
+            response.respondent_name,
+            (form.branding or {}).get("organization"),
+        )
 
     return response
 

@@ -1,7 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/foreform';
-
-const AuthContext = createContext<any>(null);
+import { AuthContext } from '@/lib/auth-context';
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState(null);
@@ -44,7 +43,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const logout = (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    base44.auth.logout(shouldRedirect ? window.location.href : undefined);
+    base44.auth.logout(shouldRedirect ? '/login' : undefined);
   };
 
   const navigateToLogin = () => {
@@ -84,12 +83,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };

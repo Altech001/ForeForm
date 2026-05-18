@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from db import get_db
@@ -8,6 +8,7 @@ from models.form_share import FormShare
 from models.user import User
 from schemas.share import ShareCreate, ShareOut
 from auth.jwt import get_current_user
+from services.resend_email import send_share_invitation_email
 
 router = APIRouter(prefix="/api/forms", tags=["shares"])
 
@@ -33,6 +34,7 @@ def list_shares(
 def create_share(
     form_id: str,
     data: ShareCreate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -63,6 +65,13 @@ def create_share(
     db.add(share)
     db.commit()
     db.refresh(share)
+    background_tasks.add_task(
+        send_share_invitation_email,
+        share.shared_with_email,
+        form.title,
+        current_user.email,
+        share.permission,
+    )
     return share
 
 

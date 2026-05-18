@@ -1,7 +1,8 @@
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { AuthProvider } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { queryClientInstance } from '@/lib/query-client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
@@ -118,6 +119,8 @@ const AuthenticatedApp = () => {
           <Route path="/forms/:id/responses" element={<FormResponses />} />
           <Route path="/forms/:formId/responses/:responseId" element={<ResponseView />} />
           <Route path="/ai-respondents" element={<AIRespondents />} />
+          <Route path="/ai-respondents/:formId" element={<AIRespondents />} />
+          <Route path="/forms/:formId/ai-respondents" element={<AIRespondents />} />
           <Route path="/complex-ai" element={<ComplexAI />} />
           <Route path="/docx-preview" element={<DocxPreview />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -147,7 +150,7 @@ function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
-        <Router>
+        <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
           <AuthenticatedApp />
         </Router>
         <Toaster />

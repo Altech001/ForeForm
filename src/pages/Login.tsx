@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
 import { Loader2 } from 'lucide-react';
 import React, { useState } from 'react';

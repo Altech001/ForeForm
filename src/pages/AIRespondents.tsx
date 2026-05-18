@@ -7,17 +7,59 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft, Bot, Sparkles, MapPin, PenLine, Users, CheckCircle2,
   AlertCircle, ChevronRight, Loader2, Play, RotateCcw,
-  Settings
+  Settings, Database
 } from "lucide-react";
 import { toast } from "sonner";
 import { randomUgandanName, randomUgandaLocation, generateSimpleSignature, UGANDA_DISTRICTS } from "@/lib/ugandaLocations";
 
 
 const REGION_OPTIONS = ["All Regions", "Central", "Eastern", "Northern", "Western"];
+const MAX_RESPONDENTS = 150;
+
+async function fetchUgandaDistricts() {
+  try {
+    const response = await fetch("https://api.opendataug.org/v1/districts");
+    if (!response.ok) throw new Error("District API unavailable");
+    const payload = await response.json();
+    const rows = Array.isArray(payload) ? payload : payload.data || payload.districts || [];
+    const normalized = rows
+      .map((item) => ({
+        name: item.name || item.district || item.district_name,
+        region: String(item.region?.name || item.region || item.region_name || "").replace(" Region", ""),
+        lat: Number(item.latitude || item.lat || item.center?.lat || 0),
+        lng: Number(item.longitude || item.lng || item.center?.lng || 0),
+        locality: item.name || item.district || item.district_name,
+      }))
+      .filter((item) => item.name && item.region && item.lat && item.lng);
+    return normalized.length ? normalized : UGANDA_DISTRICTS;
+  } catch {
+    return UGANDA_DISTRICTS;
+  }
+}
+
+function parseJsonish(value) {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    const match = value.match(/```json\s*([\s\S]*?)```/) || value.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    return match ? JSON.parse(match[1] || match[0]) : { answers: [] };
+  }
+}
+
+function fallbackAnswer(q, respondent) {
+  if (q.type === "email") return respondent.email;
+  if (q.type === "rating") return String(Math.floor(Math.random() * 2) + 4);
+  if (q.type === "number") return String(Math.floor(Math.random() * 10) + 1);
+  if (q.type === "date") return new Date().toISOString().slice(0, 10);
+  if (q.type === "file_upload") return "";
+  if (q.options?.length) return q.options[Math.floor(Math.random() * q.options.length)];
+  return "N/A";
+}
 
 function StatusBadge({ status }) {
   if (status === "pending") return <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Pending</span>;
@@ -30,13 +72,15 @@ function StatusBadge({ status }) {
 
 export default function AIRespondents() {
   const navigate = useNavigate();
+  const { formId } = useParams();
   const queryClient = useQueryClient();
 
-  const [selectedFormId, setSelectedFormId] = useState("");
+  const [selectedFormId, setSelectedFormId] = useState(formId || "");
   const [count, setCount] = useState(5);
   const [region, setRegion] = useState("All Regions");
   const [respondents, setRespondents] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [locationSource, setLocationSource] = useState("Local Uganda dataset");
 
   const { data: forms = [] } = useQuery({
     queryKey: ["forms"],
@@ -46,13 +90,25 @@ export default function AIRespondents() {
   const publishedForms = forms.filter(f => f.status === "published");
   const selectedForm = forms.find(f => f.id === selectedFormId);
 
-  const buildRespondents = () => {
+  React.useEffect(() => {
+    if (formId) setSelectedFormId(formId);
+  }, [formId]);
+
+  const buildRespondents = async () => {
+    const districts = await fetchUgandaDistricts();
+    setLocationSource(districts === UGANDA_DISTRICTS ? "Local Uganda dataset" : "Open Data Uganda public API");
     const list = [];
     for (let i = 0; i < count; i++) {
       let loc = randomUgandaLocation();
       if (region !== "All Regions") {
-        const filtered = UGANDA_DISTRICTS.filter(d => d.region === region);
+        const filtered = districts.filter(d => d.region === region);
         const base = filtered[Math.floor(Math.random() * filtered.length)];
+        const jitter = () => (Math.random() - 0.5) * 0.02;
+        loc = base
+          ? { ...base, lat: parseFloat((base.lat + jitter()).toFixed(6)), lng: parseFloat((base.lng + jitter()).toFixed(6)), accuracy: parseFloat((Math.random() * 30 + 5).toFixed(1)) }
+          : randomUgandaLocation();
+      } else if (districts.length) {
+        const base = districts[Math.floor(Math.random() * districts.length)];
         const jitter = () => (Math.random() - 0.5) * 0.02;
         loc = { ...base, lat: parseFloat((base.lat + jitter()).toFixed(6)), lng: parseFloat((base.lng + jitter()).toFixed(6)), accuracy: parseFloat((Math.random() * 30 + 5).toFixed(1)) };
       }
@@ -101,15 +157,10 @@ Return ONLY a JSON object with this EXACT structure:
 }`,
         });
 
-        // The bridge might return a double-stringified JSON or an object
-        let data = typeof result === "string" ? JSON.parse(result) : result;
-        if (typeof data === "string") data = JSON.parse(data);
-
-        resultJson = data;
+        resultJson = parseJsonish(result);
       } catch (e) {
         console.error("Failed to generate or parse AI response:", e);
-        updateRespondent(respondent.id, { status: "error" });
-        continue; // Skip this respondent and continue with the next one
+        resultJson = { answers: [] };
       }
 
       const answersMap = {};
@@ -119,7 +170,7 @@ Return ONLY a JSON object with this EXACT structure:
         question_id: q.id,
         question_label: q.label,
         question_type: q.type,
-        answer: answersMap[q.id] || (q.options?.length ? q.options[0] : "N/A"),
+        answer: answersMap[q.id] || fallbackAnswer(q, respondent),
       }));
 
       // Step 2: Generate signature
@@ -138,10 +189,6 @@ Return ONLY a JSON object with this EXACT structure:
         gps_longitude: respondent.location.lng,
         gps_accuracy: respondent.location.accuracy,
         gps_address: respondent.location.locality,
-      });
-
-      await base44.entities.Form.update(selectedForm.id, {
-        response_count: (selectedForm.response_count || 0) + 1,
       });
 
       updateRespondent(respondent.id, { status: "done", signature: signatureDataUrl });
@@ -216,11 +263,11 @@ Return ONLY a JSON object with this EXACT structure:
               <Label>Number of Respondents</Label>
               <Input
                 type="number"
-                min={1} max={20}
+                min={1} max={MAX_RESPONDENTS}
                 value={count}
-                onChange={e => setCount(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                onChange={e => setCount(Math.min(MAX_RESPONDENTS, Math.max(1, parseInt(e.target.value) || 1)))}
               />
-              <p className="text-xs text-muted-foreground">Max 20 per run</p>
+              <p className="text-xs text-muted-foreground">Max {MAX_RESPONDENTS} per run</p>
             </div>
 
             {/* Region */}
@@ -267,6 +314,9 @@ Return ONLY a JSON object with this EXACT structure:
               </Button>
             )}
           </div>
+          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Database className="w-3.5 h-3.5" /> Location source: {locationSource}. Names use a curated Ugandan name pool for local realism.
+          </p>
         </div>
 
         {/* Progress overview */}

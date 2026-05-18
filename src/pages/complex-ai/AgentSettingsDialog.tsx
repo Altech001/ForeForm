@@ -54,7 +54,8 @@ export const AgentSettingsDialog: React.FC<Props> = ({ isOpen, onClose, isDark }
                             onChange={(e) => setLocalSettings({ ...localSettings, model: e.target.value as AIModel })}
                             className={`w-full p-2 rounded border text-sm ${isDark ? "bg-[#1c1c26] border-white/10" : "bg-slate-50 border-slate-200"}`}
                         >
-                            <option value="base44">ForeForm Model (Default)</option>
+                            <option value="maxxie">Maxxie - NVIDIA Nemotron (Default)</option>
+                            <option value="base44">ForeForm Legacy Model</option>
                             <option value="gemini-flash-latest">Google Gemini Flash</option>
                             <option value="gemini-3-flash">Google Gemini 3</option>
                             <option value="openai">OpenAI</option>

@@ -1,5 +1,6 @@
 import { format, isValid } from "date-fns";
 import { getDocxTemplate } from "@/templates";
+import { stripHtml } from "@/lib/richText";
 
 const TEMPLATE_THEME_OVERRIDES: Record<string, { headingFont?: string; bodyFont?: string; titleCase?: "upper" | "normal"; metadataStyle?: "table" | "cards"; coverMode?: "hero" | "simple"; lineColor?: string; mutedColor?: string; }> = {
   alber: {
@@ -240,7 +241,7 @@ function buildCoverXml({ title, branding, template, theme }: any) {
 function buildAlberResearchIntro(branding: any, form: any, theme: any) {
   const introTitle = branding.research_title || "";
   const consent = branding.consent_text || "Participation is voluntary. Responses are used for academic purposes and handled confidentially.";
-  const description = form?.description || "";
+  const description = stripHtml(form?.description || "");
 
   let xml = ``;
   if (introTitle) {
@@ -256,7 +257,7 @@ function buildAlberResearchIntro(branding: any, form: any, theme: any) {
 
 function buildCompactIntro(branding: any, form: any, _template: any, theme: any) {
   const subtitle = branding.research_title || "";
-  const description = form?.description || "";
+  const description = stripHtml(form?.description || "");
   if (!subtitle && !description) return ``;
   
   let xml = ``;
@@ -346,6 +347,15 @@ function buildAnswersXml({ questions, answers, theme }: any) {
       } catch {}
 
       answersXml += answerParagraph(`Selected Date: ${formattedDate}`, theme, true);
+    } else if (type === "file_upload") {
+      let fileText = answerText || "—";
+      try {
+        if (answerText) {
+          const file = JSON.parse(answerText);
+          fileText = `${file.file_name || "Uploaded file"}: ${file.file_url || ""}`;
+        }
+      } catch {}
+      answersXml += answerParagraph(fileText, theme);
     } else if (type === "long_text") {
       answersXml += answerParagraph(answerText || "—", theme, false, true);
     } else {

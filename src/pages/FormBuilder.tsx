@@ -5,7 +5,6 @@ import SEO from "@/components/SEO";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Save, Send, Link2, Eye, Upload, Settings2, Users, Layers, Trophy, SlidersHorizontal } from "lucide-react";
@@ -19,6 +18,7 @@ import TeamAccessPanel from "@/components/forms/TeamAccessPanel";
 import FormSectionsPanel from "@/components/forms/FormSectionsPanel";
 import QuizSettingsPanel from "@/components/forms/QuizSettingsPanel";
 import PresentationPanel from "@/components/forms/PresentationPanel";
+import RichTextDescriptionEditor from "@/components/forms/RichTextDescriptionEditor";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -74,6 +74,19 @@ export default function FormBuilder() {
     const s = newStatus || status;
     saveMutation.mutate({ title, description, questions, status: s, branding, quiz, presentation });
     if (newStatus) setStatus(newStatus);
+  };
+
+  const handlePresentationChange = (nextPresentation: any) => {
+    setPresentation(nextPresentation);
+    saveMutation.mutate({
+      title,
+      description,
+      questions,
+      status,
+      branding,
+      quiz,
+      presentation: nextPresentation,
+    });
   };
 
   const addQuestion = () => {
@@ -166,12 +179,10 @@ export default function FormBuilder() {
                 placeholder="Form title"
                 className="text-2xl rounded-none font-bold border-none px-0 shadow-none focus-visible:ring-0 h-auto"
               />
-              <Textarea
+              <RichTextDescriptionEditor
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
                 placeholder="Add a description or abstract (optional)"
-                className="border-none px-0 shadow-none focus-visible:ring-0 resize-none text-muted-foreground"
-                rows={2}
               />
               {branding.research_title && (
                 <p className="text-sm text-muted-foreground italic">{branding.appendix_label || "Research Instrument"}: {branding.research_title}</p>
@@ -259,7 +270,7 @@ export default function FormBuilder() {
               <h2 className="font-semibold text-base mb-5 flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4 text-primary" /> Presentation Settings
               </h2>
-              <PresentationPanel presentation={presentation} onChange={setPresentation} />
+              <PresentationPanel presentation={presentation} onChange={handlePresentationChange} />
               <Button onClick={() => handleSave()} disabled={saveMutation.isPending} className="mt-6 gap-2">
                 <Save className="w-4 h-4" /> Save Presentation
               </Button>

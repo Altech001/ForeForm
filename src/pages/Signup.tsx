@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
 import { Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -8,7 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export default function Signup() {
-    const { registerUser, googleLoginUser } = useAuth();
+    const { registerUser, loginUser, googleLoginUser } = useAuth();
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -20,8 +20,9 @@ export default function Signup() {
         setIsLoading(true);
         try {
             await registerUser(email, name, password);
-            toast.success('Account created! Please log in.');
-            navigate('/login');
+            await loginUser(email, password);
+            toast.success('Account created!');
+            navigate('/');
         } catch (err: any) {
             toast.error(err.message || 'Failed to register account');
         } finally {

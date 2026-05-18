@@ -18,7 +18,7 @@ import AgentSettings from "./agent_settings";
 import { Input } from "@/components/ui/input";
 import type { AgentResponse } from "@/lib/ai_agent";
 import { getAgent } from "@/lib/ai_agent";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth } from "@/lib/useAuth";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     Bot,
@@ -359,7 +359,7 @@ export default function FormAgent() {
                 model: selectedModel === "expert" || selectedModel === "heavy" ? "gemini-3-pro-preview" :
                     selectedModel === "groq" ? "groq" :
                         selectedModel === "cerebras" ? "cerebras" :
-                            "gemini-flash-latest"
+                            "maxxie"
             });
             const artifacts: ChatArtifact[] = [];
             let questions: any[] = [];
