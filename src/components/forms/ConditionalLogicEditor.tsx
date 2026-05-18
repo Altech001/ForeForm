@@ -41,7 +41,7 @@ export default function ConditionalLogicEditor({ question, allQuestions, current
   }
 
   return (
-    <div className="mt-3 p-3 bg-accent/40 border border-primary/20 rounded-lg space-y-2">
+    <div className="mt-3 p-3 bg-accent/40 border border-primary/20 rounded space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
           <GitBranch className="w-3.5 h-3.5" /> Show this question only if…

@@ -461,24 +461,13 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
     setCurrentPrompt,
     toggleTheme,
 }) => (
-    <>
-        {/* Theme Toggle (Mobile Only) */}
-        <div className="sm:hidden flex items-center justify-between mb-2">
-            <span className={`text-[12px] font-bold uppercase tracking-widest ${isDark ? "text-[#8888a0]" : "text-slate-400"}`}>Theme</span>
-            <button
-                onClick={toggleTheme}
-                className={`p-2 rounded-full border transition-all ${isDark ? "border-white/10 bg-[#1c1c26] text-yellow-400" : "border-slate-200 bg-slate-50 text-slate-500"
-                    }`}
-            >
-                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-        </div>
+    <div className=" custom-scrollbar gap-4">
 
         {/* AI Controls */}
-        <div className="space-y-4">
-            <div>
-                <p className={`text-[12px] font-bold tracking mb-3 ${isDark ? "text-violet-400/80" : "text-violet-600/80"}`}>Refine with AI</p>
-                <div className={`rounded-xl border transition-all ${isDark ? "border-white/10 bg-[#1c1c26]" : "border-slate-200 bg-slate-50 focus-within:border-violet-300"
+        <div className="space-y-4 mb-6">
+            <div className="custom-scrollbar">
+                <p className={`text-[12px] font-bold tracking mb-3 ${isDark ? "text-violet-400/80" : "text-violet-600/80"}`}>Refine with Maxxie AI</p>
+                <div className={`rounded border transition-all ${isDark ? "border-white/10 bg-[#1c1c26]" : "border-slate-200 bg-slate-50 focus-within:border-violet-300"
                     } overflow-hidden`}>
                     <Textarea
                         value={refineVal}
@@ -487,7 +476,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                         className={`w-full bg-transparent border-none text-sm min-h-[90px] resize-none p-4 focus-visible:ring-0 leading-relaxed ${isDark ? "bg-[#1c1c26] text-[#f0f0f5]" : "text-slate-900 bg-white"
                             }`}
                     />
-                    <div className={`flex items-center justify-between px-3 py-2 border-t ${isDark ? "border-white/[0.07]" : "border-slate-200"}`}>
+                    <div className={`flex items-center bg-white justify-between px-3 py-2 border-t ${isDark ? "border-white/[0.07]" : "border-slate-200"}`}>
                         <span className="text-[10px] text-muted-foreground ml-1">Iterate on form</span>
                         <button
                             onClick={handleRefine}
@@ -501,7 +490,7 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                 </div>
             </div>
 
-            <div>
+            {/* <div>
                 <p className={`text-[10px] font-bold tracking mb-3 ${isDark ? "text-[#8888a0]" : "text-slate-400"}`}>Context Document</p>
                 <input ref={fileInputRef} type="file" className="hidden" accept=".docx,.pdf,.txt,.csv"
                     onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -525,10 +514,9 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                         </>
                     )}
                 </div>
-            </div>
+            </div> */}
         </div>
 
-        <div className={`h-[1px] w-full ${isDark ? "bg-white/5" : "bg-slate-100"}`} />
 
         {/* Stats & Structure */}
         <div className="flex flex-col gap-6">
@@ -604,5 +592,5 @@ const SettingsContent: React.FC<SettingsContentProps> = ({
                 <RotateCcw className="w-3.5 h-3.5" /> Reset All
             </button>
         </div>
-    </>
+    </div>
 );

@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/foreform";
-import SEO from "@/components/SEO";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Plus, FileText, Users, BarChart3, Bot, LayoutTemplate, LayoutGrid, List, Monitor, BookMarked, Sparkles, BrainCircuit, ShieldCheck, ChevronsUpIcon, ChevronsDownIcon } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/lib/useAuth";
 import AppHeader from "@/components/Header/AppHeader";
+import SEO from "@/components/SEO";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/useAuth";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BotMessageSquare, BrainCircuit, ChevronsDownIcon, LayoutGrid, LayoutTemplate, List, Plus, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import { toast } from "sonner";
 import FormCard from "@/components/forms/FormCard";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { motion, AnimatePresence } from "framer-motion";
 import TemplateGallery from "@/components/forms/TemplateGallery";
-import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -21,20 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import { AnimatePresence, motion } from "framer-motion";
+import { toast } from "sonner";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -46,9 +36,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [showTemplates, setShowTemplates] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [isFormsVisible, setIsFormsVisible] = useState(true);
-  const isMobile = useIsMobile();
 
   const { data: forms = [], isLoading } = useQuery({
     queryKey: ["forms"],
@@ -156,12 +144,14 @@ export default function Dashboard() {
               <img src="/layout.png" alt="Browse Templates" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
               <span className="text-xs sm:text-sm font-medium">Browse Templates</span>
             </button>
-            <button onClick={() => setIsGeneratorOpen(true)} className="col-span-2 sm:col-span-1 bg-card border border-primary/40 shadow-[0_0_10px_hsl(var(--primary)/0.15)] hover:border-primary/60 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
-              <div className="relative">
-                <img src="/icons/ai.svg" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm group-hover:scale-110 transition-transform" />
-              </div>
-              <span className="text-xs sm:text-sm font-medium">Ask ForeForm AI </span>
-            </button>
+            <GeneratorSelection onSelect={(path) => navigate(path)}>
+              <button className="col-span-2 sm:col-span-1 bg-card border border-primary/40 shadow-[0_0_10px_hsl(var(--primary)/0.15)] hover:border-primary/60 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center w-full h-full">
+                <div className="relative">
+                  <img src="/icons/ai.svg" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm group-hover:scale-110 transition-transform" />
+                </div>
+                <span className="text-xs sm:text-sm font-medium">Ask ForeForm AI </span>
+              </button>
+            </GeneratorSelection>
           </div>
         </div>
 
@@ -270,53 +260,49 @@ export default function Dashboard() {
         </AnimatePresence>
       </main>
 
-      <GeneratorSelection
-        isOpen={isGeneratorOpen}
-        onClose={() => setIsGeneratorOpen(false)}
-        isMobile={isMobile}
-        onSelect={(path) => {
-          setIsGeneratorOpen(false);
-          navigate(path);
-        }}
-      />
     </div>
   );
 }
 
-function GeneratorSelection({ isOpen, onClose, isMobile, onSelect }: {
-  isOpen: boolean;
-  onClose: () => void;
-  isMobile: boolean;
+function GeneratorSelection({ children, onSelect }: {
+  children: React.ReactNode;
   onSelect: (path: string) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleSelect = (path: string) => {
+    setIsOpen(false);
+    onSelect(path);
+  };
+
   const content = (
-    <div className="grid gap-4 p-4 sm:p-0">
+    <div className="flex flex-col gap-1 mt-4">
       <button
-        onClick={() => onSelect("/agent")}
-        className="flex items-center gap-4 p-4 rounded border border-border/20 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+        onClick={() => handleSelect("/agent")}
+        className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/60 transition-colors text-left group"
       >
-        <div className="w-12 h-12  flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-          <BrainCircuit className="w-6 h-6 text-primary" />
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary group-hover:scale-105 transition-transform">
+          <img src="/icons/ai.svg" className="w-5 h-5" />
         </div>
         <div className="flex-1">
-          <h3 className="font-bold text-base">ForeForm Agent</h3>
+          <h3 className="font-semibold text-sm text-foreground">ForeForm Agent</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Intelligent & iterative. Chat with AI to build complex, multi-section forms exactly how you want.
+            Intelligent & iterative.
           </p>
         </div>
       </button>
 
       <button
-        onClick={() => onSelect("/complex-ai")}
-        className="flex items-center gap-4 p-4 rounded border border-border/20 bg-card hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+        onClick={() => handleSelect("/complex-ai")}
+        className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/60 transition-colors text-left group"
       >
-        <div className="w-12 h-12 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-          <Sparkles className="w-6 h-6 text-amber-500" />
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary group-hover:scale-105 transition-transform">
+          <BotMessageSquare className="w-5 h-5" />
         </div>
         <div className="flex-1">
-          <h3 className="font-bold text-base">ForeForm Assistant</h3>
+          <h3 className="font-semibold text-sm text-foreground">ForeForm Assistant</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Fast & direct. Generate a complete form instantly from a single prompt or document.
+            Fast & direct.
           </p>
         </div>
       </button>
@@ -324,31 +310,20 @@ function GeneratorSelection({ isOpen, onClose, isMobile, onSelect }: {
   );
 
   const title = "Choose your AI power";
-  const description = "Select the best AI experience for your form creation needs.";
-
-  if (isMobile) {
-    return (
-      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="pb-8 px-4 bg-card">
-          <DrawerHeader className="text-left px-0">
-            <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription>{description}</DrawerDescription>
-          </DrawerHeader>
-          {content}
-        </DrawerContent>
-      </Drawer>
-    );
-  }
+  const description = "Multimodal and Studio Based.";
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px] bg-card">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        {children}
+      </PopoverTrigger>
+      <PopoverContent className="w-[calc(100vw-32px)] sm:w-[340px] p-5 bg-card rounded shadow-xl border-border/50" align="center" sideOffset={12}>
+        <div className="px-1">
+          <h4 className="font-semibold text-sm tracking-tight">{title}</h4>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        </div>
         {content}
-      </DialogContent>
-    </Dialog>
+      </PopoverContent>
+    </Popover>
   );
 }

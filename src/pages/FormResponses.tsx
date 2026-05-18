@@ -3,7 +3,7 @@ import { base44 } from "@/api/foreform";
 import SEO from "@/components/SEO";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, Sparkles } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ResponseCard from "@/components/forms/ResponseCard";
 import { downloadDocx } from "@/lib/generateDocx";
@@ -40,6 +40,12 @@ export default function FormResponses() {
               <p className="text-xs text-muted-foreground">{responses.length} responses</p>
             </div>
           </div>
+          <Button size="sm" asChild className="gap-2">
+            <Link to={`/forms/${formId}/review`}>
+              <Sparkles className="w-4 h-4" />
+              Advanced Review
+            </Link>
+          </Button>
         </div>
       </header>
 

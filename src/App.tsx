@@ -31,6 +31,7 @@ import AgentPage from './pages/agent';
 import GoogleCallbackPage from './pages/GoogleCallbackPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ConnectorsPage from './pages/connectors';
+import ReviewPage from './pages/revew/ReviewPage';
 
 const AppSkeletonLoader = () => (
   <div className="fixed inset-0 bg-background flex z-50">
@@ -117,6 +118,7 @@ const AuthenticatedApp = () => {
           <Route path="/" element={<Dashboard />} />
           <Route path="/forms/:id/edit" element={<FormBuilder />} />
           <Route path="/forms/:id/responses" element={<FormResponses />} />
+          <Route path="/forms/:id/review" element={<ReviewPage />} />
           <Route path="/forms/:formId/responses/:responseId" element={<ResponseView />} />
           <Route path="/ai-respondents" element={<AIRespondents />} />
           <Route path="/ai-respondents/:formId" element={<AIRespondents />} />

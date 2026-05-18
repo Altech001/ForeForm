@@ -100,7 +100,7 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
           )}
 
           {quizMode && (
-            <div className="flex flex-wrap items-center gap-4 px-3 py-3 bg-accent/20 rounded-lg border border-primary/20">
+            <div className="flex flex-wrap items-center gap-4 px-3 py-3 rounded border border-primary/40">
               <div className="flex items-center gap-2">
                 <Hash className="w-4 h-4 text-primary" />
                 <Label className="text-sm font-medium whitespace-nowrap">Points</Label>
@@ -119,7 +119,7 @@ export default function QuestionEditor({ question, onUpdate, onDelete, dragHandl
                   <select
                     value={question.correct_answer ?? ""}
                     onChange={(e) => updateField("correct_answer", e.target.value)}
-                    className="flex-1 h-8 rounded-md border border-input bg-transparent px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    className="flex-1 h-8 rounded border border-input bg-transparent px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   >
                     <option value="">-- select --</option>
                     {(question.options || []).map((opt, i) => (

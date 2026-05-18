@@ -250,7 +250,7 @@ Return ONLY valid JSON matching this schema: { "questions": [ { "label": "questi
 
                     <div className="flex gap-3">
                         {preview ? (
-                            <Button className="w-full h-12 shadow-xl shadow-primary/10 text-base font-black gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={confirmImport}>
+                            <Button className="w-full h-12 text-base font-black gap-2" onClick={confirmImport}>
                                 <CheckCircle2 className="w-5 h-5" /> Import {preview.length} Questions
                             </Button>
                         ) : (

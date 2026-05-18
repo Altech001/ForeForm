@@ -59,8 +59,8 @@ export default function PresentationPanel({ presentation = {}, onChange }: Prese
     <div className="space-y-6">
       {/* Form Presentation */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Form Presentation</p>
-        <div className="border border-border rounded-xl overflow-hidden">
+        <p className="text-xs font-semibold  mb-2">Form Presentation</p>
+        <div className="border overflow-hidden">
           <Row icon={LayoutList} label="Show progress bar" desc="">
             <Switch checked={s.show_progress_bar} onCheckedChange={(v) => update("show_progress_bar", v)} />
           </Row>
@@ -75,8 +75,8 @@ export default function PresentationPanel({ presentation = {}, onChange }: Prese
 
       {/* After Submission */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">After Submission</p>
-        <div className="border border-border rounded-xl overflow-hidden">
+        <p className="text-xs font-semibold mb-2">After Submission</p>
+        <div className="border overflow-hidden">
           {/* Confirmation message */}
           <div className="px-4 py-3 border-b border-border">
             <div className="flex items-center justify-between">
@@ -115,8 +115,8 @@ export default function PresentationPanel({ presentation = {}, onChange }: Prese
 
       {/* Restrictions */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Restrictions</p>
-        <div className="border border-border rounded-xl overflow-hidden">
+        <p className="text-xs font-semibold mb-2">Restrictions</p>
+        <div className="overflow-hidden">
           <Row icon={Lock} label="Disable autosave for all respondents" desc="Responses won't be saved automatically as respondents fill out the form">
             <Switch checked={s.disable_autosave} onCheckedChange={(v) => update("disable_autosave", v)} />
           </Row>

@@ -1,23 +1,10 @@
-import React from "react";
-import {
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  Heading2,
-  Heading3,
-  Link2Icon,
-  Unlink,
-  List,
-  ListOrdered,
-  Pilcrow,
-  Sparkles,
-  RefreshCw,
-  Loader2,
-  Check,
-  X,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,17 +13,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { quickPrompt } from "@/lib/ai_agent";
+import {
+  Bold,
+  BotMessageSquareIcon,
+  Check,
+  Heading2,
+  Heading3,
+  Italic,
+  Link2Icon,
+  List,
+  ListOrdered,
+  Loader2,
+  Pilcrow,
+  RefreshCw,
+  Sparkles,
+  Underline as UnderlineIcon,
+  Unlink,
+  X,
+} from "lucide-react";
+import React from "react";
 
 // ─── Font Configuration ────────────────────────────────────────────
 const FONTS = [
@@ -168,7 +169,7 @@ export default function RichTextDescriptionEditor({
     setAiPreview(null);
     try {
       const result = await quickPrompt(
-        `You are a professional editor. Enhance and improve the following form description text to be more professional, clear, and engaging. Keep the same general meaning but improve the writing quality, grammar, and flow. Add appropriate formatting if helpful. Only return the improved text, nothing else.\n\nOriginal text:\n${text}`
+        `You are a professional editor. Enhance and improve the following form description text to be more professional, clear, and engaging. Keep the same general meaning but improve the writing quality, grammar, and flow. Add appropriate formatting if helpful. Only return the improved text, dont include any * or use of markdown feature and keep context conise,nothing else.\n\nOriginal text:\n${text}`
       );
       setAiPreview(result.trim());
     } catch (err) {
@@ -247,7 +248,7 @@ export default function RichTextDescriptionEditor({
   );
 
   return (
-    <div className="rounded-lg border border-border/40 bg-background/50 focus-within:border-border focus-within:ring-1 focus-within:ring-ring/20 transition-all duration-200">
+    <div className="rounded border border-border/40 bg-background/50 focus-within:border-primary/100 transition-all duration-200">
       {/* ─── Toolbar ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border/40 px-2 py-1.5">
         {/* Text Format Group */}
@@ -370,7 +371,7 @@ export default function RichTextDescriptionEditor({
                   {aiLoading === "enhance" ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <BotMessageSquareIcon className="h-3.5 w-3.5 text-primary" />
                   )}
                   <span className="hidden sm:inline">Enhance</span>
                 </Button>

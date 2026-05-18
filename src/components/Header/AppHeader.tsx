@@ -51,12 +51,12 @@ export default function AppHeader({ onCreateForm }: AppHeaderProps) {
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <img
-                src="/letter-m.png"
+                src="/logo.png"
                 alt="ForeForm Logo"
-                className="w-7 h-7 sm:w-8 sm:h-8 object-contain"
+                className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
               />
               <span className="text-base sm:text-lg font-bold tracking-tight hidden sm:inline">
-                ForeForm
+                <span className="text-primary">Fore</span>Form
               </span>
             </button>
           </div>
