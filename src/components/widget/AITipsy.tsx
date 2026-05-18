@@ -8,7 +8,6 @@ import remarkGfm from "remark-gfm";
 import {
     BarChart3,
     BookOpen,
-    Brain,
     FileText,
     Maximize2,
     Mic,
@@ -70,22 +69,7 @@ function findMatchingForms(forms: any[], query: string) {
         .slice(0, 8);
 }
 
-function buildFormsContext(forms: any[], query: string) {
-    const matches = findMatchingForms(forms, query);
-    return matches.map((form) => ({
-        id: form.id,
-        title: form.title,
-        status: form.status,
-        responses: form.response_count || 0,
-        description: stripHtml(form.description || ""),
-        question_count: form.questions?.length || 0,
-        questions: (form.questions || []).slice(0, 10).map((q: any) => ({
-            label: q.label,
-            type: q.type,
-            required: q.required,
-        })),
-    }));
-}
+
 
 export default function ForeFormAIWidget() {
     const { user, isAuthenticated } = useAuth();
@@ -180,32 +164,10 @@ export default function ForeFormAIWidget() {
         setInputText("");
         setIsLoading(true);
 
-        const formsContext = buildFormsContext(forms, prompt);
-        const guideContext = ROUTE_GUIDES.map((route) => `${route.label}: ${route.path}`).join("\n");
-
         try {
+            // Backend now handles all context (forms, responses, analytics) from the DB
             const result = await base44.integrations.Core.InvokeLLM({
-                prompt: `You are Maxxie, the ForeForm work assistant. Help the user use ForeForm, search forms, analyze forms, navigate, and improve wording.
-
-Current user: ${user.full_name || user.email || "ForeForm user"}
-Current route: ${location.pathname}
-
-Available app routes:
-${guideContext}
-
-Relevant forms found from the user's workspace:
-${JSON.stringify(formsContext, null, 2)}
-
-Instructions:
-- Answer in concise markdown.
-- If teaching, give clickable-looking guide steps and mention exact pages.
-- If asked to search forms, list matched forms with title, status, response count, and what to open.
-- If asked to analyze, provide risks, patterns, and recommended fixes.
-- If asked for grammar or speech-to-text cleanup, correct the text and explain the main fixes briefly.
-- Do not invent forms not present in the context.
-
-User request:
-${prompt}`,
+                prompt: `Current route: ${location.pathname}\n\n${prompt}`,
             });
 
             const content = typeof result === "string" ? result : result?.text || "I could not produce a response.";

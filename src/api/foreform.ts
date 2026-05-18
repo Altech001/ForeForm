@@ -3,7 +3,7 @@ import { appParams } from '@/lib/app-params';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://foreform.vercel.app/api';
 
-function getToken() {
+export function getToken() {
     return localStorage.getItem('access_token') || appParams.token;
 }
 

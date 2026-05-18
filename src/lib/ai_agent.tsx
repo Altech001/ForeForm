@@ -5,7 +5,7 @@
  * for form building, survey generation, and document creation.
  */
 
-import { base44 } from "@/api/foreform";
+import { base44, getToken } from "@/api/foreform";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -577,11 +577,12 @@ export class ForeFormAgent {
             config: this.config,
             history: this.history,
         };
+        const token = getToken();
         const res = await fetch(CUSTOM_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                ...(localStorage.getItem("access_token") ? { "Authorization": `Bearer ${localStorage.getItem("access_token")}` } : {})
+                ...(token ? { "Authorization": `Bearer ${token}` } : {})
             },
             body: JSON.stringify(body),
         });
