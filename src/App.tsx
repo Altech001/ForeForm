@@ -6,7 +6,7 @@ import { queryClientInstance } from '@/lib/query-client';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { Toaster as SonnerToaster } from "sonner";
-import ProfileWidget from './components/widget/profile';
+import ProfileWidget from './components/widget/AITipsy';
 import PageNotFound from './lib/PageNotFound';
 import AIRespondents from './pages/AIRespondents';
 import ComplexAI from './pages/ComplexAI';

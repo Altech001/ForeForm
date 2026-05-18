@@ -156,11 +156,9 @@ export default function Dashboard() {
               <img src="/layout.png" alt="Browse Templates" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm" />
               <span className="text-xs sm:text-sm font-medium">Browse Templates</span>
             </button>
-            <button onClick={() => setIsGeneratorOpen(true)} className="bg-card border border-primary/40 shadow-[0_0_10px_hsl(var(--primary)/0.15)] hover:border-primary/60 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
+            <button onClick={() => setIsGeneratorOpen(true)} className="col-span-2 sm:col-span-1 bg-card border border-primary/40 shadow-[0_0_10px_hsl(var(--primary)/0.15)] hover:border-primary/60 transition-all rounded p-4 sm:p-5 flex flex-col items-center justify-center gap-3 text-center">
               <div className="relative">
-                {/* <img src="/star.png" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm group-hover:scale-110 transition-transform" /> */}
-                
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <img src="/icons/ai.svg" alt="Generate Form" className="w-8 h-8 sm:w-10 sm:h-10 object-contain drop-shadow-sm group-hover:scale-110 transition-transform" />
               </div>
               <span className="text-xs sm:text-sm font-medium">Ask ForeForm AI </span>
             </button>
