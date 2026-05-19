@@ -1,18 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Sparkles, Send, FileText, Loader2, Bot, Database, Mic, MicOff, Volume2 } from 'lucide-react';
+import { ArrowLeft, Database, Loader2, Mic, MicOff, Send, Sparkles, Volume2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Link, useParams } from 'react-router-dom';
+import remarkGfm from 'remark-gfm';
 
 import { base44 } from '@/api/foreform';
 import SEO from '@/components/SEO';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 
 type Message = {
     id: string;
@@ -32,6 +35,41 @@ export default function ReviewPage() {
     const [aiEnabled, setAiEnabled] = useState(true);
     const [voiceMode, setVoiceMode] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const recognitionRef = useRef<any>(null);
+
+    // Initialize Web Speech API
+    useEffect(() => {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = true;
+            recognitionRef.current.interimResults = true;
+
+            recognitionRef.current.onresult = (event: any) => {
+                let fullTranscript = '';
+                for (let i = 0; i < event.results.length; ++i) {
+                    fullTranscript += event.results[i][0].transcript;
+                }
+                setAiPrompt(fullTranscript);
+            };
+
+            recognitionRef.current.onend = () => {
+                setVoiceMode(false);
+            };
+
+            recognitionRef.current.onerror = (e: any) => {
+                console.error('Speech recognition error:', e);
+                setVoiceMode(false);
+            };
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
+            }
+            window.speechSynthesis.cancel();
+        };
+    }, []);
 
     const { data: form } = useQuery({
         queryKey: ["form", formId],
@@ -80,7 +118,7 @@ export default function ReviewPage() {
         try {
             const historyText = messages.map(m => `${m.role === 'user' ? 'User' : 'Analyst'}: ${m.content}`).join('\n');
 
-            const result = await base44.integrations.Core.InvokeLLM({
+            let result = await base44.integrations.Core.InvokeLLM({
                 prompt: `Act as a helpful, conversational, and highly intelligent human data analyst. You are analyzing form responses for form "${form?.title}". 
 Data (JSON snippet): ${JSON.stringify(responses.slice(0, 30))}
 
@@ -88,11 +126,24 @@ Previous conversation history:
 ${historyText}
 User: "${userMsg}"
 
-Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer the question.`,
+Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer the question. IMPORTANT: Return your response in standard markdown format. Do NOT wrap your entire response in a markdown code block (i.e. do not start and end with \`\`\`markdown).`,
             });
+
+            if (result) {
+                // Strip outer markdown code blocks if the LLM still returns them
+                result = result.replace(/^```(?:markdown)?\s*\n/, '').replace(/\n```\s*$/, '');
+            }
 
             const aiResponseMsg: Message = { id: (Date.now() + 1).toString(), role: 'ai', content: result || "I couldn't process that. Could you ask differently?" };
             setMessages(prev => [...prev, aiResponseMsg]);
+
+            if (result) {
+                // Strip basic markdown syntax for speech output
+                const cleanText = result.replace(/[#_*~`]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1');
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                window.speechSynthesis.cancel(); // Stop current speech
+                window.speechSynthesis.speak(utterance);
+            }
         } catch (e) {
             const errorMsg: Message = { id: (Date.now() + 1).toString(), role: 'ai', content: "I'm sorry, I encountered an error analyzing that right now. Please try again." };
             setMessages(prev => [...prev, errorMsg]);
@@ -102,8 +153,19 @@ Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer 
     };
 
     const toggleVoiceMode = () => {
-        setVoiceMode(!voiceMode);
-        // In a real implementation, this would trigger Web Speech API recognition
+        if (voiceMode) {
+            recognitionRef.current?.stop();
+            setVoiceMode(false);
+        } else {
+            setAiPrompt('');
+            window.speechSynthesis.cancel();
+            try {
+                recognitionRef.current?.start();
+                setVoiceMode(true);
+            } catch (e) {
+                console.error("Could not start speech recognition", e);
+            }
+        }
     };
 
     return (
@@ -144,14 +206,24 @@ Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer 
                     {/* Left Panel: AI & Analysis */}
                     {aiEnabled && (
                         <>
-                            <ResizablePanel defaultSize={30} minSize={25} maxSize={45} className="bg-card flex flex-col border-r relative transition-all duration-300">
-                                <div className="p-4 border-b flex items-center justify-between bg-muted/30">
+                            <ResizablePanel defaultSize={30} minSize={25} maxSize={35} className="bg-card flex flex-col border-r relative transition-all duration-300">
+                                <div className="p-4 border-b flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <div className="p-1.5 bg-primary/10 rounded-md">
-                                            <Sparkles className="w-4 h-4 text-primary" />
+                                            <img src='/icons/ai.svg' className="w-4 h-4 text-primary" />
                                         </div>
                                         <h2 className="font-semibold text-sm tracking-tight">Data Analyst AI</h2>
                                     </div>
+                                    {/* Stats Summary */}
+                                    <div className="flex gap-3 shrink-0">
+                                        <div className="px-3 py-2 flex flex-col">
+                                            <p className="text-sm font-semibold tracking-tight text-primary">{responses.length} <span className="font-bold">Responses</span></p>
+                                        </div>
+                                        <div className="px-3 py-2 flex flex-col">
+                                            <p className="text-sm font-semibold tracking-tight text-primary">{allQuestions.length} <span className="font-bold">Columns</span></p>
+                                        </div>
+                                    </div>
+
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -164,52 +236,45 @@ Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer 
                                 </div>
 
                                 <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4" ref={scrollRef}>
-                                    {/* Stats Summary */}
-                                    <div className="grid grid-cols-2 gap-3 mb-2 shrink-0">
-                                        <div className="bg-background border border-border/60 rounded-xl p-3 shadow-sm">
-                                            <p className="text-2xl font-bold tracking-tight text-primary">{responses.length}</p>
-                                            <p className="text-[10px]  font-semibold text-muted-foreground mt-0.5 flex items-center gap-1">
-                                                <Database className="w-3 h-3" /> Responses
-                                            </p>
-                                        </div>
-                                        <div className="bg-background border border-border/60 rounded-xl p-3 shadow-sm">
-                                            <p className="text-2xl font-bold tracking-tight text-primary">{allQuestions.length}</p>
-                                            <p className="text-[10px]  font-semibold text-muted-foreground mt-0.5 flex items-center gap-1">
-                                                <FileText className="w-3 h-3" /> Columns
-                                            </p>
-                                        </div>
-                                    </div>
-
                                     {/* Chat Messages */}
                                     <div className="flex flex-col gap-3 pb-4">
                                         {messages.map((msg) => (
                                             <div key={msg.id} className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}>
                                                 <div className="flex items-end gap-1.5">
                                                     {msg.role === 'ai' && (
-                                                        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mb-1">
-                                                            <Bot className="w-3.5 h-3.5 text-primary" />
+                                                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-1">
+                                                            <img src='/icons/ai.svg' className="w-4 h-4 text-primary" />
                                                         </div>
                                                     )}
-                                                    <div className={`px-3 py-2 text-sm rounded-2xl ${msg.role === 'user'
+                                                    <div className={`px-4 py-3 text-sm rounded-2xl ${msg.role === 'user'
                                                         ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                                        : 'bg-muted/60 text-foreground border border-border/50 rounded-bl-sm prose prose-sm dark:prose-invert max-w-full overflow-hidden break-words'
+                                                        : 'bg-transparent text-black rounded-bl-sm max-w-full overflow-hidden break-words'
                                                         }`}>
-                                                        {msg.content}
+                                                        {msg.role === 'user' ? (
+                                                            msg.content
+                                                        ) : (
+                                                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                    {msg.content}
+                                                                </ReactMarkdown>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     {msg.role === 'user' && (
-                                                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mb-1">
-                                                            <span className="text-[10px] font-bold text-primary">Me</span>
-                                                        </div>
+                                                        <Avatar className="w-7 h-7 border border-border/60" >
+                                                            <AvatarImage src="https://github.com/shadcn.png" />
+                                                            <AvatarFallback>user</AvatarFallback>
+                                                        </Avatar>
                                                     )}
                                                 </div>
                                             </div>
                                         ))}
                                         {isAiLoading && (
                                             <div className="flex self-start max-w-[85%] gap-1.5 items-end">
-                                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mb-1">
-                                                    <Bot className="w-3.5 h-3.5 text-primary" />
+                                                <div className="w-6 h-6 rounded-full  flex items-center justify-center shrink-0 mb-1">
+                                                    <img src='/icons/ai.svg' className="w-4 h-4 text-primary" />
                                                 </div>
-                                                <div className="px-4 py-3 bg-muted/60 rounded-2xl rounded-bl-sm border border-border/50">
+                                                <div className="px-4 py-3 bg-transparent text-black rounded-2xl rounded-bl-sm border border-border/50">
                                                     <div className="flex gap-1">
                                                         <div className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" />
                                                         <div className="w-1.5 h-1.5 rounded-full bg-primary/50 animate-bounce" style={{ animationDelay: '0.2s' }} />
@@ -222,25 +287,42 @@ Respond clearly, accurately, and thoughtfully. Keep it concise but fully answer 
                                 </div>
 
                                 {/* Chat Input */}
-                                <div className="p-3 bg-background border-t shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.05)] z-10 shrink-0">
-                                    <div className="relative flex items-center">
-                                        <Input
-                                            placeholder={voiceMode ? "Listening..." : "Ask me anything..."}
+                                <div className="p-4 border-t z-10 shrink-0 bg-background/50 backdrop-blur supports-[backdrop-filter]:bg-background/50">
+                                    <div className="relative flex items-end py-1 gap-1 shadow-sm border border-border/60 rounded-xl bg-card overflow-hidden focus-within:ring-1 focus-within:border-primary transition-all">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className={`absolute left-1 top-3.5 h-8 w-8 shrink-0 rounded-lg transition-colors ${voiceMode ? 'text-rose-500 bg-rose-500/10 hover:bg-rose-500/20' : 'text-muted-foreground hover:text-foreground'}`}
+                                            title={voiceMode ? "Stop listening" : "Start Voice Mode"}
+                                            onClick={toggleVoiceMode}
+                                        >
+                                            <Mic className={`w-4 h-4 ${voiceMode ? 'animate-pulse' : ''}`} />
+                                        </Button>
+                                        <Textarea
+                                            placeholder={voiceMode ? "Listening..." : "Describe your form..."}
                                             value={aiPrompt}
                                             onChange={(e) => setAiPrompt(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleAskAi()}
-                                            className={`pr-12 transition-colors text-sm rounded-full h-11 shadow-sm ${voiceMode ? 'bg-rose-50/50 border-rose-200 focus-visible:ring-rose-500' : 'bg-muted/30 border-muted-foreground/20 focus-visible:bg-background'}`}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleAskAi();
+                                                }
+                                            }}
+                                            className={`min-h-[52px] max-h-[200px] w-full resize-none bg-transparent border-0 focus-visible:ring-0 pl-10 pr-12 py-3.5 text-sm ${voiceMode ? 'bg-rose-50/50' : ''}`}
+                                            rows={1}
                                         />
-                                        <Button
-                                            size="icon"
-                                            className={`absolute right-1 h-9 w-9 rounded-full ${voiceMode && !aiPrompt ? 'bg-rose-500 hover:bg-rose-600 animate-pulse' : ''}`}
-                                            onClick={handleAskAi}
-                                            disabled={isAiLoading || (!aiPrompt.trim() && !voiceMode)}
-                                        >
-                                            {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                                                (voiceMode && !aiPrompt) ? <Volume2 className="w-4 h-4" /> : <Send className="w-4 h-4 ml-0.5" />
-                                            )}
-                                        </Button>
+                                        <div className="absolute right-1.5 bottom-1.5 flex items-center shrink-0">
+                                            <Button
+                                                size="icon"
+                                                className={`h-8 w-8 rounded-lg ${voiceMode && !aiPrompt ? 'bg-rose-500 hover:bg-rose-600 animate-pulse' : 'bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary'}`}
+                                                onClick={handleAskAi}
+                                                disabled={isAiLoading || (!aiPrompt.trim() && !voiceMode)}
+                                            >
+                                                {isAiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                                                    (voiceMode && !aiPrompt) ? <Volume2 className="w-4 h-4" /> : <Send className="w-4 h-4" />
+                                                )}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             </ResizablePanel>
