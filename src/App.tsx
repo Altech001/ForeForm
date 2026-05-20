@@ -17,10 +17,6 @@ import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
 import FormResponses from './pages/FormResponses';
 import Login from './pages/Login';
-import MeritePlanDetails from './pages/MeriteBills/PlanDetails';
-import MeritePlans from './pages/MeriteBills/Plans';
-import MeriteTransactions from './pages/MeriteBills/Transactions';
-import MeriteUsers from './pages/MeriteBills/Users';
 import ProfilePage from './pages/ProfilePage';
 import ResponseView from './pages/ResponseView';
 import Signup from './pages/Signup';
@@ -129,10 +125,6 @@ const AuthenticatedApp = () => {
           <Route path="/bookmark-tasks" element={<TasksIndex />} />
           <Route path="/bookmark-tasks/:taskId" element={<ViewTask />} />
           <Route path="/bookmark-documents" element={<Documents />} />
-          <Route path="/plans" element={<MeritePlans />} />
-          <Route path="/plans/:id" element={<MeritePlanDetails />} />
-          <Route path="/transactions" element={<MeriteTransactions />} />
-          <Route path="/users" element={<MeriteUsers />} />
           <Route path="/agent" element={<AgentPage />} />
           <Route path="/connectors" element={<ConnectorsPage />} />
           <Route path="/integrations/google/callback" element={<GoogleCallbackPage />} />
