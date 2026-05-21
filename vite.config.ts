@@ -5,12 +5,12 @@ import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(() => ({
-  server: {
-    host: "::",
-    hmr: {
-      overlay: false,
-    },
-  },
+  // server: {
+  //   host: "::",
+  //   hmr: {
+  //     overlay: false,
+  //   },
+  // },
   plugins: [react()].filter(Boolean),
   resolve: {
     alias: {

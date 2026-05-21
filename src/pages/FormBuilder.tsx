@@ -19,6 +19,7 @@ import FormSectionsPanel from "@/components/forms/FormSectionsPanel";
 import QuizSettingsPanel from "@/components/forms/QuizSettingsPanel";
 import PresentationPanel from "@/components/forms/PresentationPanel";
 import RichTextDescriptionEditor from "@/components/forms/RichTextDescriptionEditor";
+import { useAuth } from "@/lib/useAuth";
 
 function generateId() {
   return "q_" + Math.random().toString(36).substring(2, 9);
@@ -27,6 +28,7 @@ function generateId() {
 export default function FormBuilder() {
   const { id: formId } = useParams();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [showImport, setShowImport] = useState(false);
 
   const { data: form, isLoading } = useQuery({
@@ -43,11 +45,6 @@ export default function FormBuilder() {
   const [branding, setBranding] = useState<any>({});
   const [quiz, setQuiz] = useState<any>({});
   const [presentation, setPresentation] = useState<any>({});
-  const [currentUser, setCurrentUser] = React.useState(null);
-
-  React.useEffect(() => {
-    base44.auth.me().then(setCurrentUser).catch(() => { });
-  }, []);
 
   useEffect(() => {
     if (form) {

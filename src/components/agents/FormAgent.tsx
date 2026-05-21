@@ -1,4 +1,4 @@
-import { base44 } from "@/api/foreform";
+import { base44, API_BASE, getToken } from "@/api/foreform";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
     DialogDescription,
 } from "@/components/ui/dialog";
 import AgentSettings from "./agent_settings";
+import SideBar from "@/components/Header/SideBar";
 import { Input } from "@/components/ui/input";
 import type { AgentResponse } from "@/lib/ai_agent";
 import { getAgent } from "@/lib/ai_agent";
@@ -36,6 +37,7 @@ import {
     Lightbulb,
     Loader2,
     LucideChevronsLeft,
+    Menu,
     MessageSquare,
     Paperclip,
     Plus,
@@ -51,7 +53,9 @@ import {
     Trash2,
     Wrench,
     X,
-    Zap
+    Zap,
+    Cpu,
+    Search
 } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -157,7 +161,21 @@ export default function FormAgent() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>(() => {
+        const cachedMsgs = localStorage.getItem("foreform_cached_messages");
+        if (cachedMsgs) {
+            try {
+                const parsed = JSON.parse(cachedMsgs);
+                return parsed.map((m: any) => ({
+                    ...m,
+                    timestamp: new Date(m.timestamp)
+                }));
+            } catch (e) {
+                return [];
+            }
+        }
+        return [];
+    });
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -167,11 +185,144 @@ export default function FormAgent() {
     const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem("foreform_default_model") || "fast");
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
-    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sessionId, setSessionId] = useState<string | null>(() => {
+        return localStorage.getItem("foreform_active_session_id");
+    });
     const [sessionList, setSessionList] = useState<any[]>([]);
     const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const autoSaveEnabled = localStorage.getItem("foreform_auto_save_chats") !== "false";
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // Dynamic models from backend
+    interface BackendModel {
+        id: string;
+        name: string;
+        provider: string;
+        category: string;
+    }
+    const [backendModels, setBackendModels] = useState<BackendModel[]>([]);
+    const [modelPickerSearch, setModelPickerSearch] = useState("");
+    const moeEnabled = localStorage.getItem("foreform_moe_enabled") === "true";
+
+    const PROVIDER_STYLES: Record<string, { icon: string; color: string; bg: string }> = {
+        meta: { icon: "🦙", color: "text-blue-500", bg: "bg-blue-500/10" },
+        deepseek: { icon: "◇", color: "text-purple-500", bg: "bg-purple-500/10" },
+        google: { icon: "✦", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+        mistral: { icon: "🌀", color: "text-orange-500", bg: "bg-orange-500/10" },
+        nvidia: { icon: "✧", color: "text-lime-500", bg: "bg-lime-500/10" },
+        qwen: { icon: "🔮", color: "text-indigo-500", bg: "bg-indigo-500/10" },
+        moonshot: { icon: "🌙", color: "text-yellow-500", bg: "bg-yellow-500/10" },
+        openai: { icon: "◎", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+        stepfun: { icon: "⚡", color: "text-pink-500", bg: "bg-pink-500/10" },
+        minimax: { icon: "💎", color: "text-teal-500", bg: "bg-teal-500/10" },
+        zhipu: { icon: "🧠", color: "text-sky-500", bg: "bg-sky-500/10" },
+        bytedance: { icon: "🌱", color: "text-green-500", bg: "bg-green-500/10" },
+        microsoft: { icon: "🪟", color: "text-blue-400", bg: "bg-blue-400/10" },
+    };
+
+    // Load models from backend
+    useEffect(() => {
+        const fetchModels = async () => {
+            try {
+                const token = getToken();
+                const headers: Record<string, string> = { "Content-Type": "application/json" };
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+                const res = await fetch(`${API_BASE}/models`, { headers });
+                if (res.ok) {
+                    const data = await res.json();
+                    setBackendModels(data.models || []);
+                }
+            } catch (err) {
+                console.warn("Failed to load models:", err);
+            }
+        };
+        fetchModels();
+    }, []);
+
+    // Filter models by what the user enabled in settings
+    const enabledModelIds = (() => {
+        try {
+            const saved = localStorage.getItem("foreform_enabled_models");
+            return saved ? new Set(JSON.parse(saved)) : null;
+        } catch {
+            return null;
+        }
+    })();
+    const displayModels = backendModels.filter(m => !enabledModelIds || enabledModelIds.has(m.id));
+    const filteredPickerModels = displayModels.filter(m =>
+        !modelPickerSearch || m.name.toLowerCase().includes(modelPickerSearch.toLowerCase()) || m.id.toLowerCase().includes(modelPickerSearch.toLowerCase())
+    );
+
+    // Get display info for current selected model
+    const getSelectedModelInfo = () => {
+        // Check legacy presets first
+        const legacyPresets: Record<string, { name: string; icon: string; color: string }> = {
+            auto: { name: "Auto", icon: "🔀", color: "text-purple-500" },
+            fast: { name: "Maxxie", icon: "⚡", color: "text-amber-500" },
+            expert: { name: "Expert", icon: "💡", color: "text-primary" },
+            heavy: { name: "Heavy", icon: "🔥", color: "text-rose-500" },
+            groq: { name: "Groq", icon: "⚡", color: "text-red-500" },
+            cerebras: { name: "Cerebras", icon: "🚀", color: "text-orange-500" },
+            moe: { name: "MoE Agent", icon: "🤖", color: "text-primary" },
+        };
+        if (legacyPresets[selectedModel]) return legacyPresets[selectedModel];
+
+        // Check backend models
+        const found = backendModels.find(m => m.id === selectedModel);
+        if (found) {
+            const style = PROVIDER_STYLES[found.provider];
+            return { name: found.name, icon: style?.icon || "🤖", color: style?.color || "text-foreground" };
+        }
+        return { name: selectedModel, icon: "🤖", color: "text-foreground" };
+    };
+
+    // Responsive State
+    const [isMobile, setIsMobile] = useState(false);
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    // Resizable History Sidebar Logic
+    const [historyWidth, setHistoryWidth] = useState(() => {
+        const saved = localStorage.getItem("foreform_history_width");
+        return saved ? Number(saved) : 280;
+    });
+    const isResizing = useRef(false);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isResizing.current) return;
+        const sidebarOffset = 64; // width of the main w-16 aside
+        const newWidth = e.clientX - sidebarOffset;
+        if (newWidth >= 200 && newWidth <= 480) {
+            setHistoryWidth(newWidth);
+            localStorage.setItem("foreform_history_width", String(newWidth));
+        }
+    }, []);
+
+    const handleMouseUp = useCallback(() => {
+        isResizing.current = false;
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+    }, [handleMouseMove]);
+
+    const startResizing = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        isResizing.current = true;
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+    }, [handleMouseMove, handleMouseUp]);
+
+    useEffect(() => {
+        return () => {
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        };
+    }, [handleMouseMove, handleMouseUp]);
 
     const fileToBase64 = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -219,16 +370,61 @@ export default function FormAgent() {
         }
     }, [messages]);
 
-    // Load session history on mount
+    // Load session history and hydrate active session on mount
     useEffect(() => {
+        // 1. Hydrate session list from cache immediately
+        const cachedList = localStorage.getItem("foreform_cached_sessions");
+        if (cachedList) {
+            try {
+                setSessionList(JSON.parse(cachedList));
+            } catch (e) {
+                console.error("Failed to parse cached sessions", e);
+            }
+        }
         loadSessionList();
+
+        // 2. Fetch fresh messages for current session in background if exists
+        const cachedSessionId = localStorage.getItem("foreform_active_session_id");
+        if (cachedSessionId) {
+            const fetchFreshSession = async () => {
+                try {
+                    const session = await base44.entities.AgentSession.get(cachedSessionId);
+                    if (session?.messages) {
+                        const restoredMsgs: ChatMessage[] = session.messages.map((m: any) => ({
+                            id: m.id || uid(),
+                            role: m.role,
+                            text: m.text || "",
+                            toolCalls: m.toolCalls,
+                            artifacts: m.artifacts,
+                            timestamp: new Date(m.timestamp),
+                            isStreaming: false,
+                        }));
+                        setMessages(restoredMsgs);
+                        localStorage.setItem("foreform_cached_messages", JSON.stringify(restoredMsgs));
+
+                        agent.current.clearHistory();
+                        const agentHistory = restoredMsgs.map(m => ({
+                            role: m.role === "user" ? "user" as const : "model" as const,
+                            parts: [{ text: m.text }]
+                        }));
+                        agent.current.setHistory(agentHistory);
+                    }
+                } catch (err) {
+                    console.warn("Background session sync failed", err);
+                }
+            };
+            fetchFreshSession();
+        }
     }, []);
 
     const loadSessionList = async () => {
-        setIsLoadingSessions(true);
+        setIsLoadingSessions(sessionList.length === 0);
         try {
             const sessions = await base44.entities.AgentSession.list();
-            setSessionList(sessions);
+            // Sort by updated_at descending for a better history load
+            const sortedSessions = sessions.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+            setSessionList(sortedSessions);
+            localStorage.setItem("foreform_cached_sessions", JSON.stringify(sortedSessions));
         } catch {
             // Backend may not be ready
         } finally {
@@ -251,7 +447,19 @@ export default function FormAgent() {
                 }));
                 setMessages(restoredMsgs);
                 setSessionId(session.id);
+
+                // Update localStorage cache
+                localStorage.setItem("foreform_active_session_id", session.id);
+                localStorage.setItem("foreform_cached_messages", JSON.stringify(restoredMsgs));
+
+                // Hydrate Agent's internal history to keep follow-up conversations working
                 agent.current.clearHistory();
+                const agentHistory = restoredMsgs.map(m => ({
+                    role: m.role === "user" ? "user" as const : "model" as const,
+                    parts: [{ text: m.text }]
+                }));
+                agent.current.setHistory(agentHistory);
+
                 setShowHistory(false);
                 toast.success(`Loaded: ${session.title}`);
             }
@@ -286,6 +494,8 @@ export default function FormAgent() {
                     model_used: selectedModel,
                 });
                 setSessionId(created.id);
+                localStorage.setItem("foreform_active_session_id", created.id);
+                loadSessionList(); // refresh session list so it is shown in history
             }
         } catch {
             // Silently fail — don't interrupt the UX
@@ -331,7 +541,11 @@ export default function FormAgent() {
                 })),
                 timestamp: new Date(),
             };
-            setMessages(prev => [...prev, userMessage]);
+            setMessages(prev => {
+                const updated = [...prev, userMessage];
+                localStorage.setItem("foreform_cached_messages", JSON.stringify(updated));
+                return updated;
+            });
             setFilePreviews(new Map()); // clear previews after sending
         } else {
             // Remove the last turn from agent history to allow re-chatting the same prompt
@@ -339,9 +553,13 @@ export default function FormAgent() {
         }
 
         const loadingId = uid();
-        setMessages(prev => [...prev, {
-            id: loadingId, role: "assistant", text: "", timestamp: new Date(), isStreaming: true,
-        }]);
+        setMessages(prev => {
+            const updated: ChatMessage[] = [...prev, {
+                id: loadingId, role: "assistant", text: "", timestamp: new Date(), isStreaming: true,
+            }];
+            localStorage.setItem("foreform_cached_messages", JSON.stringify(updated));
+            return updated;
+        });
         setIsLoading(true);
 
         try {
@@ -353,21 +571,55 @@ export default function FormAgent() {
                 }))
             );
 
-            const response: AgentResponse = await agent.current.chat(msg, {
-                files: processedFiles,
-                search: isWebSearchEnabled,
-                model: selectedModel === "expert" || selectedModel === "heavy" ? "gemini-3-pro-preview" :
-                    selectedModel === "groq" ? "groq" :
-                        selectedModel === "cerebras" ? "cerebras" :
-                            "maxxie"
-            });
+            let responseText = "";
+            let responseFunctionCalls: any[] = [];
+
+            if (moeEnabled) {
+                // ── MoE endpoint ──
+                const token = getToken();
+                const headers: Record<string, string> = { "Content-Type": "application/json" };
+                if (token) headers["Authorization"] = `Bearer ${token}`;
+
+                const moePreset = localStorage.getItem("foreform_moe_preset") || "power";
+                const moeRes = await fetch(`${API_BASE}/agent/moe/chat`, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        message: msg,
+                        preset: moePreset,
+                        session_id: sessionId,
+                    }),
+                });
+
+                if (!moeRes.ok) {
+                    const errData = await moeRes.json().catch(() => ({}));
+                    throw new Error(errData.detail || `MoE request failed (${moeRes.status})`);
+                }
+
+                const moeData = await moeRes.json();
+                responseText = moeData.response || moeData.text || "";
+                responseFunctionCalls = moeData.functionCalls || [];
+            } else {
+                // ── Regular agent chat ──
+                const response: AgentResponse = await agent.current.chat(msg, {
+                    files: processedFiles,
+                    search: isWebSearchEnabled,
+                    model: selectedModel === "expert" || selectedModel === "heavy" ? "gemini-3-pro-preview" :
+                        selectedModel === "groq" ? "groq" :
+                            selectedModel === "cerebras" ? "cerebras" :
+                                selectedModel.includes("/") ? selectedModel :
+                                    "maxxie"
+                });
+                responseText = response.text;
+                responseFunctionCalls = response.functionCalls || [];
+            }
             const artifacts: ChatArtifact[] = [];
             let questions: any[] = [];
             let sections: any[] = [];
 
-            const jsonMatch = response.text.match(/```json\s*([\s\S]*?)```/) ||
-                response.text.match(/\[[\s\S]*\]/) ||
-                response.text.match(/\{[\s\S]*\}/);
+            const jsonMatch = responseText.match(/```json\s*([\s\S]*?)```/) ||
+                responseText.match(/\[[\s\S]*\]/) ||
+                responseText.match(/\{[\s\S]*\}/);
 
             if (jsonMatch) {
                 try {
@@ -388,14 +640,15 @@ export default function FormAgent() {
                 const updated = prev.map(m =>
                     m.id === loadingId ? {
                         ...m,
-                        text: response.text,
-                        toolCalls: response.functionCalls,
+                        text: responseText,
+                        toolCalls: responseFunctionCalls,
                         artifacts,
                         isStreaming: false,
                     } : m
                 );
                 // Auto-save to backend
                 saveSession(updated);
+                localStorage.setItem("foreform_cached_messages", JSON.stringify(updated));
                 return updated;
             });
         } catch (err: any) {
@@ -410,13 +663,17 @@ export default function FormAgent() {
             if (isQuotaError) displayMessage = quotaMessage;
             if (isSecurityError) displayMessage = securityMessage;
 
-            setMessages(prev => prev.map(m =>
-                m.id === loadingId ? {
-                    ...m,
-                    text: displayMessage,
-                    isStreaming: false,
-                } : m
-            ));
+            setMessages(prev => {
+                const updated = prev.map(m =>
+                    m.id === loadingId ? {
+                        ...m,
+                        text: displayMessage,
+                        isStreaming: false,
+                    } : m
+                );
+                localStorage.setItem("foreform_cached_messages", JSON.stringify(updated));
+                return updated;
+            });
 
             if (isQuotaError) {
                 toast.error("Daily quota reached");
@@ -511,35 +768,41 @@ export default function FormAgent() {
         }
     };
 
+    const filteredSessions = sessionList.filter(s =>
+        s.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className="flex h-screen bg-background overflow-hidden relative">
             {/* Background Glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[40%] bg-primary/5 blur-[120px] pointer-events-none rounded-full" />
 
-            {/* Sidebar */}
-            <aside className="w-16 border-r border-border/40 flex flex-col items-center py-6 gap-4 z-10 bg-card/30 backdrop-blur-xl">
-                <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="rounded-xl">
-                    <LucideChevronsLeft className="w-10 h-10 text-muted-foreground" />
+            {/* Backdrop Overlay for mobile sidebar */}
+            {showHistory && isMobile && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+                    onClick={() => setShowHistory(false)}
+                />
+            )}
+
+            {/* Sidebar (Desktop only) */}
+            <aside className="hidden md:flex w-16 border-r border-border/40 flex-col items-center py-6 gap-4 z-10 bg-card/30 backdrop-blur-xl shrink-0">
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="rounded-full text-muted-foreground hover:text-primary transition-colors" title="Menu">
+                    <Menu className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={startNewChat} className="rounded-xl text-muted-foreground hover:text-primary transition-colors" title="New chat">
+                <Button variant="ghost" size="icon" onClick={startNewChat} className="rounded-full text-muted-foreground hover:text-primary transition-colors" title="New chat">
                     <Plus className="w-5 h-5" />
                 </Button>
                 <Button
                     variant="ghost" size="icon"
                     onClick={() => { setShowHistory(!showHistory); if (!showHistory) loadSessionList(); }}
-                    className={`rounded-xl transition-colors ${showHistory ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"}`}
+                    className={`rounded-full transition-colors ${showHistory ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"}`}
                     title="Chat history"
                 >
                     <History className="w-5 h-5" />
                 </Button>
 
                 <div className="flex-1" />
-                <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)} className="rounded-xl text-muted-foreground hover:text-primary transition-colors">
-                    <Settings className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={clearChat} className="rounded-xl text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="w-5 h-5" />
-                </Button>
             </aside>
 
             {/* Chat History Panel */}
@@ -547,17 +810,25 @@ export default function FormAgent() {
                 {showHistory && (
                     <motion.aside
                         initial={{ width: 0, opacity: 0 }}
-                        animate={{ width: 280, opacity: 1 }}
+                        animate={{ width: isMobile ? 280 : historyWidth, opacity: 1 }}
                         exit={{ width: 0, opacity: 0 }}
-                        className="border-r border-border/40 bg-card/50 backdrop-blur-xl z-10 overflow-hidden flex flex-col"
+                        className={`border-r border-border/40 bg-card/95 md:bg-card/50 backdrop-blur-xl z-50 md:z-10 overflow-hidden flex flex-col relative shrink-0 ${isMobile ? "fixed inset-y-0 left-0 shadow-2xl h-full" : "relative"
+                            }`}
                     >
-                        <div className="p-4 border-b border-border/30">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="p-4 border-b border-border/30 space-y-3">
+                            <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-bold">Chat History</h3>
                                 <button onClick={() => setShowHistory(false)} className="text-muted-foreground hover:text-foreground">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
+                            <Input
+                                type="text"
+                                placeholder="Search history..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="h-8 text-xs bg-muted/40 border-border/40 focus-visible:ring-primary/20 placeholder:text-muted-foreground/60 rounded"
+                            />
                             <Button onClick={startNewChat} variant="outline" size="sm" className="w-full rounded text-xs font-bold gap-2">
                                 <Plus className="w-3.5 h-3.5" /> New Chat
                             </Button>
@@ -567,13 +838,15 @@ export default function FormAgent() {
                                 <div className="flex items-center justify-center py-8">
                                     <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                                 </div>
-                            ) : sessionList.length === 0 ? (
+                            ) : filteredSessions.length === 0 ? (
                                 <div className="text-center py-8">
                                     <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-                                    <p className="text-xs text-muted-foreground">No saved chats yet</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {searchQuery ? "No matching chats" : "No saved chats yet"}
+                                    </p>
                                 </div>
                             ) : (
-                                sessionList.map((s) => (
+                                filteredSessions.map((s) => (
                                     <div
                                         key={s.id}
                                         className={`group flex items-center gap-2 p-3 rounded cursor-pointer transition-all text-left ${sessionId === s.id
@@ -597,29 +870,43 @@ export default function FormAgent() {
                                 ))
                             )}
                         </div>
+
+                        {/* Resize handle */}
+                        {!isMobile && (
+                            <div
+                                onMouseDown={startResizing}
+                                className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors z-30 group"
+                            >
+                                <div className="w-[1px] h-full bg-border/30 mx-auto group-hover:bg-primary/40 transition-colors" />
+                            </div>
+                        )}
                     </motion.aside>
                 )}
             </AnimatePresence>
 
             {/* Chat Container */}
-            <main className="flex-1 flex flex-col relative z-20">
+            <main className="flex-1 flex flex-col relative z-20 min-w-0">
                 {/* Header */}
-                <header className="h-16 px-8 flex items-center justify-between border-b border-border/30 bg-background/50 backdrop-blur-md">
-                    <div className="flex items-center gap-3">
-                        <h1 className="font-semibold text-lg tracking-tight">ForeForm AI</h1>
-                        <Badge variant="outline" className="text-[10px] font-medium border-primary/20 bg-primary/5 text-primary">Beta</Badge>
+                <header className="h-16 px-4 md:px-8 flex items-center justify-between backdrop-blur-md">
+                    <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                        <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(true)} className="md:hidden rounded-xl h-8 w-8 shrink-0">
+                            <Menu className="w-5 h-5 text-muted-foreground" />
+                        </Button>
+                        <h1 className="font-semibold text-base md:text-lg tracking-tight truncate">SuperAgent</h1>
+                        <Badge variant="outline" className="text-[9px] md:text-[10px] font-medium border-primary/20 bg-primary/5 text-primary shrink-0">Beta</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-2">
-                            <Share2 className="w-4 h-4" /> Share
+                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                        <Button
+                            variant="ghost" size="icon"
+                            onClick={() => { setShowHistory(!showHistory); if (!showHistory) loadSessionList(); }}
+                            className={`rounded-xl transition-colors md:hidden ${showHistory ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-primary"}`}
+                            title="Chat history"
+                        >
+                            <History className="w-5 h-5" />
                         </Button>
 
                         <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(true)} className="rounded-xl text-muted-foreground hover:text-primary transition-colors">
                             <Settings className="w-5 h-5" />
-                        </Button>
-
-                        <Button variant="ghost" size="icon" onClick={clearChat} className="rounded-xl text-muted-foreground hover:text-destructive transition-colors">
-                            <Trash2 className="w-5 h-5" />
                         </Button>
                     </div>
                 </header>
@@ -628,20 +915,20 @@ export default function FormAgent() {
                     {isSettingsOpen && <AgentSettings onClose={() => setIsSettingsOpen(false)} />}
                 </AnimatePresence>
 
-                <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar pb-32">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto no-scrollbar pb-36 md:pb-32">
                     {messages.length === 0 ? (
                         /* ─── Empty State ──────────────────────────────── */
-                        <div className="h-full max-w-2xl mx-auto flex flex-col justify-center px-6 py-20">
+                        <div className="h-full max-w-2xl mx-auto flex flex-col justify-center px-4 md:px-6 py-12 md:py-20">
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="space-y-8"
+                                className="space-y-6 md:space-y-8"
                             >
-                                <div className="space-y-4">
-                                    <h2 className="text-3xl font-bold  leading-none tracking-tight">
+                                <div className="space-y-3 md:space-y-4">
+                                    <h2 className="text-2xl md:text-3xl font-bold leading-none tracking-tight">
                                         Hello, <span className="text-primary font-mono">{user?.full_name}</span>.
                                     </h2>
-                                    <p className="text-sm text-muted-foreground font-medium max-w-lg italic">
+                                    <p className="text-xs md:text-sm text-muted-foreground font-medium max-w-lg italic">
                                         I can help you build beautiful forms, structure surveys, and automate your research workflow.
                                     </p>
                                 </div>
@@ -877,7 +1164,7 @@ export default function FormAgent() {
                 </div>
 
                 {/* ─── Floating Input Area ────────────────────────────── */}
-                <div className="absolute bottom-0 left-0 right-0 p-8 pt-0 bg-gradient-to-t from-background via-background/95 to-transparent z-40">
+                <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 pt-0 bg-gradient-to-t from-background via-background/95 to-transparent z-40">
                     <div className="max-w-3xl mx-auto relative group">
                         {/* Decorative Background for Input */}
                         <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/20 to-primary/20 rounded opacity-0 group-focus-within:opacity-100 transition-opacity" />
@@ -966,7 +1253,7 @@ export default function FormAgent() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
-                                    className={`rounded-full shrink-0 transition-colors ${isWebSearchEnabled ? "text-primary bg-primary/10 hover:bg-primary/20" : "text-muted-foreground hover:bg-muted"
+                                    className={`rounded-full shrink-0 transition-colors hidden sm:flex ${isWebSearchEnabled ? "text-primary bg-primary/10 hover:bg-primary/20" : "text-muted-foreground hover:bg-muted"
                                         }`}
                                 >
                                     <Globe className="w-5 h-5" />
@@ -980,7 +1267,7 @@ export default function FormAgent() {
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={handleKeyDown}
                                     placeholder="Lets Create something new?"
-                                    className="border-none shadow-none focus-visible:ring-0 text-base py-6 bg-transparent placeholder:text-muted-foreground/60 placeholder:font-medium"
+                                    className="flex-1 min-w-0 border-none shadow-none focus-visible:ring-0 text-base py-6 bg-transparent placeholder:text-muted-foreground/60 placeholder:font-medium"
                                     disabled={isLoading}
                                 />
                                 <DropdownMenu>
@@ -988,55 +1275,91 @@ export default function FormAgent() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-10 gap-2.5 px-4 text-xs font-bold bg-muted/40 text-muted-foreground rounded hover:bg-muted hover:text-foreground transition-all"
+                                            className="h-8 w-8 sm:h-10 sm:w-auto p-0 sm:px-4 gap-0 sm:gap-2.5 text-xs font-bold bg-transparent sm:bg-muted/40 text-muted-foreground rounded-full sm:rounded hover:bg-muted hover:text-foreground transition-all shrink-0"
                                         >
-                                            {selectedModel === "auto" && <Rocket className="w-4 h-4 text-purple-500 fill-current" />}
-                                            {selectedModel === "fast" && <Zap className="w-4 h-4 text-amber-500 fill-current" />}
-                                            {selectedModel === "expert" && <Lightbulb className="w-4 h-4 text-primary fill-current" />}
-                                            {selectedModel === "heavy" && <LayoutGrid className="w-4 h-4 text-rose-500 fill-current" />}
-                                            <span className="capitalize">{selectedModel}</span>
-                                            <ChevronDown className="w-3.5 h-3.5 opacity-50" />
+                                            <span className={`text-base ${getSelectedModelInfo().color}`}>{getSelectedModelInfo().icon}</span>
+                                            <span className="hidden sm:inline truncate max-w-24">{getSelectedModelInfo().name}</span>
+                                            <ChevronDown className="w-3.5 h-3.5 opacity-50 shrink-0 hidden sm:inline" />
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                         align="end"
                                         side="top"
                                         sideOffset={12}
-                                        className="w-72 p-2 bg-white backdrop-blur-2xl border-border/50 animate-in fade-in slide-in-from-bottom-3 rounded-xl"
+                                        collisionPadding={16}
+                                        className="w-[calc(100vw-32px)] sm:w-80 p-0 bg-white backdrop-blur-2xl border-border/50 animate-in fade-in slide-in-from-bottom-3 rounded z-50 max-h-[420px] overflow-hidden flex flex-col"
                                     >
-                                        {[
-                                            { id: "auto", name: "Auto", desc: "Chooses Fast or Expert", icon: Rocket, color: "text-purple-500", bg: "bg-purple-500/10" },
-                                            { id: "fast", name: "Fast", desc: "Quick responses - 1.5 Flash", icon: Zap, color: "text-amber-500", bg: "bg-amber-500/10" },
-                                            { id: "expert", name: "Expert", desc: "Thinks hard - 1.5 Pro", icon: Lightbulb, color: "text-primary", bg: "bg-primary/10" },
-                                            { id: "heavy", name: "Heavy", desc: "Powered by 1.5 Pro", icon: LayoutGrid, color: "text-rose-500", bg: "bg-rose-500/10" },
-                                            { id: "groq", name: "Groq", desc: "Ultrafast Open Source", icon: Zap, color: "text-red-500", bg: "bg-red-500/10" },
-                                            { id: "cerebras", name: "Cerebras", desc: "CS-3 Powered Llama", icon: Rocket, color: "text-orange-500", bg: "bg-orange-500/10" }
-                                        ].map((m) => (
-                                            <DropdownMenuItem
-                                                key={m.id}
-                                                onClick={() => setSelectedModel(m.id)}
-                                                className={`flex items-start gap-4 p-3 rounded cursor-pointer transition-all mb-1 last:mb-0 focus:bg-accent/50 ${selectedModel === m.id ? "bg-primary/10" : "hover:bg-muted/50"}`}
-                                            >
-                                                <div className={`mt-0.5 p-2 rounded-lg ${m.bg} ${m.color} shrink-0`}>
-                                                    <m.icon className="w-4 h-4 fill-current" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="font-bold text-sm">{m.name}</span>
-                                                        {selectedModel === m.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                                                    </div>
-                                                    <p className="text-[11px] text-muted-foreground font-medium leading-tight mt-1 truncate">{m.desc}</p>
-                                                </div>
-                                            </DropdownMenuItem>
-                                        ))}
-
-                                        <div className="mt-2 pt-2 border-t border-border/40">
-                                            <div className="px-3 py-1.5 flex items-center gap-2.5  justify-between text-[10px] font-bold text-muted-foreground/60">
-                                                ForeForm Models
-                                                <div className="p-1 rounded bg-muted/50">
-                                                    <Settings className="w-3.5 h-3.5" />
-                                                </div>
+                                        {/* Search */}
+                                        <div className="p-2 border-b border-border/30">
+                                            <div className="relative">
+                                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search models..."
+                                                    value={modelPickerSearch}
+                                                    onChange={(e) => setModelPickerSearch(e.target.value)}
+                                                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted/30 border border-border/40 rounded focus:outline-none focus:ring-1 focus:ring-primary/30"
+                                                />
                                             </div>
+                                        </div>
+
+                                        <div className="overflow-y-auto p-2 space-y-1 max-h-[370px]">
+                                            {moeEnabled ? (
+                                                /* ── MoE mode: only show MoE Agent ── */
+                                                <>
+                                                    <div className="px-2 pt-1 pb-1">
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Active Mode</span>
+                                                    </div>
+                                                    <DropdownMenuItem
+                                                        onClick={() => setSelectedModel("moe")}
+                                                        className="flex items-center gap-3 p-2.5 rounded cursor-pointer transition-all bg-primary/10"
+                                                    >
+                                                        <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                                                            <Cpu className="w-4 h-4 text-primary" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="font-bold text-xs">MoE Agent</span>
+                                                            <p className="text-[10px] text-muted-foreground truncate">Multi-expert orchestration</p>
+                                                        </div>
+                                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                                                    </DropdownMenuItem>
+                                                    <div className="px-3 pt-3 pb-1">
+                                                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                                                            MoE mode is active. Your prompts are routed through the multi-expert orchestrator. To switch back to individual models, disable MoE in <span className="font-bold text-foreground">Settings → General</span>.
+                                                        </p>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                /* ── Normal mode: presets + model list ── */
+                                                <>
+                                                    {/* Built-in Presets */}
+                                                    <div className="px-2 pt-1 pb-1">
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Quick Presets</span>
+                                                    </div>
+                                                    {[
+                                                        { id: "auto", name: "Auto", desc: "Smart routing", icon: "🔀", color: "text-purple-500", bg: "bg-purple-500/10" },
+                                                        { id: "fast", name: "Maxxie", desc: "NVIDIA fast default", icon: "⚡", color: "text-amber-500", bg: "bg-amber-500/10" },
+                                                        { id: "expert", name: "Expert", desc: "Deep thinking", icon: "💡", color: "text-primary", bg: "bg-primary/10" },
+                                                        { id: "groq", name: "Groq", desc: "Ultrafast inference", icon: "⚡", color: "text-red-500", bg: "bg-red-500/10" },
+                                                        { id: "cerebras", name: "Cerebras", desc: "CS-3 Powered", icon: "🚀", color: "text-orange-500", bg: "bg-orange-500/10" },
+                                                    ].filter(m => !modelPickerSearch || m.name.toLowerCase().includes(modelPickerSearch.toLowerCase())).map((m) => (
+                                                        <DropdownMenuItem
+                                                            key={m.id}
+                                                            onClick={() => setSelectedModel(m.id)}
+                                                            className={`flex items-center gap-3 p-2.5 rounded cursor-pointer transition-all ${selectedModel === m.id ? "bg-primary/10" : "hover:bg-muted/50"}`}
+                                                        >
+                                                            <div className={`p-1.5 rounded-md ${m.bg} shrink-0`}>
+                                                                <span className="text-sm">{m.icon}</span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="font-bold text-xs">{m.name}</span>
+                                                                <p className="text-[10px] text-muted-foreground truncate">{m.desc}</p>
+                                                            </div>
+                                                            {selectedModel === m.id && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" />}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </>
+                                            )}
                                         </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -1078,6 +1401,9 @@ export default function FormAgent() {
                     </DialogContent>
                 </Dialog>
             </main>
+
+            {/* Global Navigation Sidebar */}
+            <SideBar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         </div>
     );
 }

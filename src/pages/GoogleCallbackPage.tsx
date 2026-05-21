@@ -8,7 +8,7 @@ import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
  * /integrations/google/callback
  * Google redirects here after the user grants permission.
  * We extract the `code` and `state` (provider) from the URL, 
- * exchange them for tokens via the backend, then redirect to /profile.
+ * exchange them for tokens via the backend, then redirect to /connectors.
  */
 export default function GoogleCallbackPage() {
     const [searchParams] = useSearchParams();
@@ -37,12 +37,12 @@ export default function GoogleCallbackPage() {
             try {
                 await base44.integrations.Google.callback(code, provider);
                 setStatus("success");
-                setMessage(
-                    provider === "google_sheets"
-                        ? "Google Sheets connected successfully!"
-                        : "Google Drive connected successfully!"
-                );
-                setTimeout(() => navigate("/profile"), 2000);
+                const providerName = provider
+                    .replace("google_", "Google ")
+                    .replace("gmail", "Gmail")
+                    .replace("youtube", "YouTube");
+                setMessage(`${providerName} connected successfully!`);
+                setTimeout(() => navigate("/connectors"), 1600);
             } catch (err: any) {
                 setStatus("error");
                 setMessage(err?.message || "Failed to connect. Please try again.");
@@ -78,10 +78,10 @@ export default function GoogleCallbackPage() {
                         <XCircle className="w-12 h-12 text-rose-500 mx-auto" />
                         <p className="text-lg font-light text-slate-800">{message}</p>
                         <button
-                            onClick={() => navigate("/profile")}
+                            onClick={() => navigate("/connectors")}
                             className="text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors mt-4"
                         >
-                            Back to Settings
+                            Back to Connectors
                         </button>
                     </>
                 )}

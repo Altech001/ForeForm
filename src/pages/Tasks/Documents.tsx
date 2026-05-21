@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import {
@@ -17,14 +17,13 @@ import {
     FileCode,
     Share2,
     Link as LinkIcon,
-    FolderPlus,
     Layers,
     ExternalLink,
     Cloud,
-    HardDrive
+    HardDrive,
+    Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
     Dialog,
@@ -42,6 +41,7 @@ import {
     DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { base44 } from "@/api/foreform";
 import { motion, AnimatePresence } from "framer-motion";
@@ -63,46 +63,18 @@ interface Document {
 
 type UploadDestination = "auto" | "drive" | "cloudinary";
 
+const DOCUMENTS_QUERY_KEY = ['documents'] as const;
+
 export default function Documents() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
-    const { data: documentsData, isLoading } = useQuery({
-        queryKey: ['documents'],
-        queryFn: base44.entities.Document.list
-    });
-
-    // Fallback document list and type mapping
-    const documents: Document[] = (documentsData || []).map((doc: any) => ({
-        ...doc,
-        createdAt: doc.created_at || doc.createdAt || new Date().toISOString()
-    }));
-
-    const createDocMut = useMutation({
-        mutationFn: base44.entities.Document.create,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['documents'] });
-            toast.success("Document uploaded successfully!");
-            setIsUploadOpen(false);
-            setUploadFile(null);
-            setCustomName("");
-            setUploadDestination("auto");
-        }
-    });
-
-    const updateDocMut = useMutation({
-        mutationFn: ({ id, data }: { id: string, data: any }) => base44.entities.Document.update(id, data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['documents'] });
-        }
-    });
-
-    const deleteDocMut = useMutation({
-        mutationFn: base44.entities.Document.delete,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['documents'] });
-            toast.success("Document deleted");
-        }
+    const { data: documentsData, isLoading, isFetching, isError, refetch } = useQuery({
+        queryKey: DOCUMENTS_QUERY_KEY,
+        queryFn: base44.entities.Document.list,
+        staleTime: 1000 * 60 * 10,
+        gcTime: 1000 * 60 * 60,
+        placeholderData: (previousData) => previousData,
     });
 
     const [isUploadOpen, setIsUploadOpen] = useState(false);
@@ -113,8 +85,83 @@ export default function Documents() {
     const [editingDoc, setEditingDoc] = useState<Document | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [uploadDestination, setUploadDestination] = useState<UploadDestination>("auto");
-
     const [activeFilter, setActiveFilter] = useState<"all" | "joint" | "image" | "pdf">("all");
+
+    // Fallback document list and type mapping
+    const documents: Document[] = useMemo(() => (documentsData || []).map((doc: any) => ({
+        ...doc,
+        createdAt: doc.created_at || doc.createdAt || new Date().toISOString()
+    })), [documentsData]);
+
+    const createDocMut = useMutation({
+        mutationFn: base44.entities.Document.create,
+        onSuccess: (createdDoc: any) => {
+            queryClient.setQueryData(DOCUMENTS_QUERY_KEY, (old: any[] = []) => [
+                createdDoc,
+                ...old.filter((doc) => doc.id !== createdDoc.id),
+            ]);
+            queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+            toast.success("Document uploaded successfully!");
+            setIsUploadOpen(false);
+            setUploadFile(null);
+            setCustomName("");
+            setUploadDestination("auto");
+        }
+    });
+
+    const updateDocMut = useMutation({
+        mutationFn: ({ id, data }: { id: string, data: any }) => base44.entities.Document.update(id, data),
+        onMutate: async ({ id, data }) => {
+            await queryClient.cancelQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+            const previousDocuments = queryClient.getQueryData<any[]>(DOCUMENTS_QUERY_KEY);
+
+            queryClient.setQueryData(DOCUMENTS_QUERY_KEY, (old: any[] = []) =>
+                old.map((doc) => (doc.id === id ? { ...doc, ...data } : doc))
+            );
+
+            return { previousDocuments };
+        },
+        onError: (_error, _variables, context) => {
+            if (context?.previousDocuments) {
+                queryClient.setQueryData(DOCUMENTS_QUERY_KEY, context.previousDocuments);
+            }
+            toast.error("Failed to update document");
+        },
+        onSuccess: (updatedDoc: any) => {
+            queryClient.setQueryData(DOCUMENTS_QUERY_KEY, (old: any[] = []) =>
+                old.map((doc) => (doc.id === updatedDoc.id ? updatedDoc : doc))
+            );
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+        },
+    });
+
+    const deleteDocMut = useMutation({
+        mutationFn: base44.entities.Document.delete,
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+            const previousDocuments = queryClient.getQueryData<any[]>(DOCUMENTS_QUERY_KEY);
+
+            queryClient.setQueryData(DOCUMENTS_QUERY_KEY, (old: any[] = []) =>
+                old.filter((doc) => doc.id !== id)
+            );
+
+            return { previousDocuments };
+        },
+        onError: (_error, _id, context) => {
+            if (context?.previousDocuments) {
+                queryClient.setQueryData(DOCUMENTS_QUERY_KEY, context.previousDocuments);
+            }
+            toast.error("Failed to delete document");
+        },
+        onSuccess: () => {
+            toast.success("Document deleted");
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: DOCUMENTS_QUERY_KEY });
+        },
+    });
 
 
     const handleUpload = async () => {
@@ -123,7 +170,6 @@ export default function Documents() {
         setIsUploading(true);
         try {
             let fileUrl: string;
-            let uploadDest = uploadDestination;
 
             if (uploadDestination === "auto" || uploadDestination === "drive") {
                 // Use smart upload (auto-routes text→Drive, media→Cloudinary) or force Drive
@@ -133,7 +179,6 @@ export default function Documents() {
                         uploadDestination === "auto" ? undefined : "drive"
                     );
                     fileUrl = driveRes.file_url;
-                    uploadDest = driveRes.destination;
                     if (driveRes.destination === "drive") {
                         toast.info(`Uploaded to Google Drive`, { duration: 2000 });
                     }
@@ -141,7 +186,6 @@ export default function Documents() {
                     // Fallback to Cloudinary if Drive fails
                     const res = await base44.integrations.Core.UploadFile({ file: uploadFile });
                     fileUrl = res.file_url;
-                    uploadDest = "cloudinary";
                 }
             } else {
                 // Cloudinary only
@@ -157,9 +201,10 @@ export default function Documents() {
                 size: uploadFile.size,
                 is_joint: activeFilter === "joint"
             };
-            createDocMut.mutate(payload);
+            await createDocMut.mutateAsync(payload);
         } catch (error) {
             toast.error("Failed to upload document");
+        } finally {
             setIsUploading(false);
         }
     };
@@ -193,8 +238,8 @@ export default function Documents() {
         if (!result.destination || isDnDDisabled) return;
     };
 
-    const formatSize = (bytes: number) => {
-        if (bytes === 0) return '0 Bytes';
+    const formatSize = (bytes: number = 0) => {
+        if (!bytes) return '0 Bytes';
         const k = 1024;
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -209,8 +254,9 @@ export default function Documents() {
         return <File className="w-5 h-5 text-slate-500" />;
     };
 
-    const filteredDocuments = documents.filter((doc: any) => {
-        const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const filteredDocuments = useMemo(() => documents.filter((doc: any) => {
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+        const matchesSearch = doc.name.toLowerCase().includes(normalizedSearch);
         const isJoint = doc.is_joint || doc.isJoint;
         const matchesFilter =
             activeFilter === "all" ? true :
@@ -218,9 +264,11 @@ export default function Documents() {
                     activeFilter === "image" ? doc.type?.includes("image") :
                         activeFilter === "pdf" ? doc.type?.includes("pdf") : true;
         return matchesSearch && matchesFilter;
-    });
+    }), [activeFilter, documents, searchQuery]);
 
-    const isDnDDisabled = searchQuery.length > 0 || activeFilter !== "all";
+    const showInitialLoading = isLoading && documents.length === 0;
+    const hasActiveSearchOrFilter = searchQuery.trim().length > 0 || activeFilter !== "all";
+    const isDnDDisabled = searchQuery.trim().length > 0 || activeFilter !== "all";
 
     return (
         <div className="min-h-screen bg-background">
@@ -284,11 +332,18 @@ export default function Documents() {
                     </div>
                 </div>
 
-                {isDnDDisabled && documents.length > 0 && searchQuery.length === 0 && (
+                {isDnDDisabled && documents.length > 0 && searchQuery.trim().length === 0 && (
                     <p className="text-[10px] text-muted-foreground mb-4 italic ml-2">Reordering is disabled while filters are active.</p>
                 )}
-                {searchQuery.length > 0 && (
+                {searchQuery.trim().length > 0 && (
                     <p className="text-[10px] text-muted-foreground mb-4 italic ml-2">Reordering is disabled during search.</p>
+                )}
+
+                {isFetching && !showInitialLoading && (
+                    <div className="mb-4 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Syncing documents...
+                    </div>
                 )}
 
                 {/* Documents List */}
@@ -301,7 +356,44 @@ export default function Documents() {
                                 className="space-y-3"
                             >
                                 <AnimatePresence mode="popLayout">
-                                    {filteredDocuments.length === 0 ? (
+                                    {showInitialLoading ? (
+                                        <motion.div
+                                            key="loading-state"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            className="space-y-3"
+                                        >
+                                            {[...Array(6)].map((_, index) => (
+                                                <div key={index} className="flex items-center gap-4 p-4 rounded border bg-card/50 border-border/50">
+                                                    <Skeleton className="h-5 w-5 rounded" />
+                                                    <Skeleton className="h-10 w-10 rounded" />
+                                                    <div className="flex-1 min-w-0 space-y-2">
+                                                        <Skeleton className="h-4 w-2/5" />
+                                                        <Skeleton className="h-3 w-1/4" />
+                                                    </div>
+                                                    <Skeleton className="h-8 w-24 rounded" />
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    ) : isError && documents.length === 0 ? (
+                                        <motion.div
+                                            key="error-state"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="text-center py-24 border border-dashed rounded bg-card/30"
+                                        >
+                                            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                                                <File className="w-8 h-8 text-destructive/70" />
+                                            </div>
+                                            <h2 className="text-lg font-semibold mb-1">Could not load documents</h2>
+                                            <p className="text-muted-foreground text-sm mb-6">Please try again in a moment.</p>
+                                            <Button variant="outline" onClick={() => refetch()} className="gap-2">
+                                                Retry
+                                            </Button>
+                                        </motion.div>
+                                    ) : filteredDocuments.length === 0 ? (
                                         <motion.div
                                             key="empty-state"
                                             initial={{ opacity: 0, y: 10 }}
@@ -312,8 +404,10 @@ export default function Documents() {
                                             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                                                 <File className="w-8 h-8 text-muted-foreground/50" />
                                             </div>
-                                            <h2 className="text-lg font-semibold mb-1">No documents found</h2>
-                                            <p className="text-muted-foreground text-sm mb-6">Start by uploading your first document.</p>
+                                            <h2 className="text-lg font-semibold mb-1">{hasActiveSearchOrFilter ? "No matching documents" : "No documents yet"}</h2>
+                                            <p className="text-muted-foreground text-sm mb-6">
+                                                {hasActiveSearchOrFilter ? "Try a different search or filter." : "Start by uploading your first document."}
+                                            </p>
                                             <Button variant="outline" onClick={() => setIsUploadOpen(true)} className="gap-2">
                                                 <Plus className="w-3.5 h-3.5" /> Upload Now
                                             </Button>
@@ -360,7 +454,7 @@ export default function Documents() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                                             <Button
                                                                 variant="ghost"
                                                                 size="icon"
@@ -424,7 +518,7 @@ export default function Documents() {
             </main>
 
             {/* Upload Dialog */}
-            <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+            <Dialog open={isUploadOpen} onOpenChange={(open) => !isUploading && setIsUploadOpen(open)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Upload Document</DialogTitle>
@@ -493,6 +587,7 @@ export default function Documents() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsUploadOpen(false)} disabled={isUploading}>Cancel</Button>
                         <Button onClick={handleUpload} disabled={isUploading || !uploadFile} className="gap-2 font-bold px-6">
+                            {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
                             {isUploading ? "Uploading..." : "Confirm Upload"}
                         </Button>
                     </DialogFooter>
@@ -527,4 +622,3 @@ export default function Documents() {
         </div>
     );
 }
-

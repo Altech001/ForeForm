@@ -28,6 +28,16 @@ class Settings:
         "GOOGLE_OAUTH_REDIRECT_URI",
         "http://localhost:5173/integrations/google/callback",
     )
+    TWITTER_OAUTH_CLIENT_ID: str = os.getenv("TWITTER_OAUTH_CLIENT_ID", "")
+    TWITTER_OAUTH_CLIENT_SECRET: str = os.getenv("TWITTER_OAUTH_CLIENT_SECRET", "")
+    TWITTER_OAUTH_REDIRECT_URI: str = os.getenv(
+        "TWITTER_OAUTH_REDIRECT_URI",
+        "http://localhost:5173/integrations/twitter/callback",
+    )
+    TWITTER_OAUTH_SCOPES: str = os.getenv(
+        "TWITTER_OAUTH_SCOPES",
+        "tweet.read users.read offline.access",
+    )
 
 
 settings = Settings()

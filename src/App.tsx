@@ -19,15 +19,18 @@ import FormResponses from './pages/FormResponses';
 import Login from './pages/Login';
 import ProfilePage from './pages/ProfilePage';
 import ResponseView from './pages/ResponseView';
+import SchedulerPage from './pages/scheduler';
 import Signup from './pages/Signup';
 import Documents from './pages/Tasks/Documents';
 import TasksIndex from './pages/Tasks/Index';
 import ViewTask from './pages/Tasks/ViewTask';
 import AgentPage from './pages/agent';
 import GoogleCallbackPage from './pages/GoogleCallbackPage';
+import TwitterCallbackPage from './pages/TwitterCallbackPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ConnectorsPage from './pages/connectors';
 import ReviewPage from './pages/revew/ReviewPage';
+import AsisstedFill from './pages/agenticfill/AsisstedFill';
 
 const AppSkeletonLoader = () => (
   <div className="fixed inset-0 bg-background flex z-50">
@@ -84,6 +87,7 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/f/:id" element={<FormFill />} />
+        <Route path="/f/:id/assisted" element={<AsisstedFill />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     );
@@ -127,7 +131,9 @@ const AuthenticatedApp = () => {
           <Route path="/bookmark-documents" element={<Documents />} />
           <Route path="/agent" element={<AgentPage />} />
           <Route path="/connectors" element={<ConnectorsPage />} />
+          <Route path="/schedules" element={<SchedulerPage />} />
           <Route path="/integrations/google/callback" element={<GoogleCallbackPage />} />
+          <Route path="/integrations/twitter/callback" element={<TwitterCallbackPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
         </Route>
 

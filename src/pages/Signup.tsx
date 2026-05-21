@@ -1,12 +1,13 @@
-import { Button } from "@/components/ui/button";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import SEO from "@/components/SEO";
+import { Button } from "@/components/ui/button";
 import { useAuth } from '@/lib/useAuth';
 import { GoogleLogin } from '@react-oauth/google';
-import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Helmet } from 'react-helmet-async';
 
 export default function Signup() {
     const { registerUser, loginUser, googleLoginUser } = useAuth();
@@ -79,7 +80,6 @@ export default function Signup() {
                 src="/bg/bg.png"
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover opacity-[0.04] blur-sm pointer-events-none select-none z-0"
-                fetchPriority="high"
             />
 
             <div className="w-full max-w-[360px] flex flex-col items-center z-10 pb-16">

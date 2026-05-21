@@ -279,7 +279,7 @@ function GeneratorSelection({ children, onSelect }: {
     <div className="flex flex-col gap-1 mt-4">
       <button
         onClick={() => handleSelect("/agent")}
-        className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/60 transition-colors text-left group"
+        className="flex items-center gap-4 p-3 rounded hover:bg-muted/60 transition-colors text-left group"
       >
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary group-hover:scale-105 transition-transform">
           <img src="/icons/ai.svg" className="w-5 h-5" />
@@ -294,10 +294,10 @@ function GeneratorSelection({ children, onSelect }: {
 
       <button
         onClick={() => handleSelect("/complex-ai")}
-        className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/60 transition-colors text-left group"
+        className="flex items-center gap-4 p-3 rounded hover:bg-muted/60 transition-colors text-left group"
       >
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-primary group-hover:scale-105 transition-transform">
-          <BotMessageSquare className="w-5 h-5" />
+          <img src="/logo.png" className="w-8 h-8" />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-sm text-foreground">ForeForm Assistant</h3>

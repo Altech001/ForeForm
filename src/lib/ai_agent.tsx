@@ -5,15 +5,15 @@
  * for form building, survey generation, and document creation.
  */
 
+import { API_BASE } from "@/api/apiBase";
 import { base44, getToken } from "@/api/foreform";
 
 const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-// Use local backend in dev, vercel in prod
-const API_BASE = import.meta.env.VITE_API_BASE || (import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : "https://foreform.vercel.app/api");
+
 const CUSTOM_API_URL = API_BASE
     ? `${API_BASE}/agent/chat/custom`
-    : "https://foreform.vercel.app/api/agent/chat/custom";
+    : "https://api.pitbox.fun/api/agent/chat/custom";
 
 /**
  * Resolve the best Gemini API key to use.

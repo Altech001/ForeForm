@@ -1,20 +1,111 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { appParams } from '@/lib/app-params';
+import { API_BASE } from './apiBase';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://foreform.vercel.app/api';
+export { API_BASE };
+
+const CURRENT_USER_CACHE_KEY = 'foreform:current-user';
+const CURRENT_USER_CACHE_TTL_MS = 1000 * 60 * 15;
 
 export function getToken() {
-    return localStorage.getItem('access_token') || appParams.token;
+    try {
+        return localStorage.getItem('access_token') || appParams.token;
+    } catch {
+        return appParams.token;
+    }
 }
 
 function setToken(token: string) {
-    localStorage.setItem('access_token', token);
+    try {
+        localStorage.setItem('access_token', token);
+    } catch {
+        // Without local storage the token cannot persist, but the login request still resolves.
+    }
 }
 
 function clearToken() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('token');
-    localStorage.removeItem('base44_access_token');
+    try {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('base44_access_token');
+    } catch {
+        // Nothing else to clear when storage is unavailable.
+    }
+}
+
+type CachedCurrentUser = {
+    token: string | null;
+    user: any;
+    cachedAt: number;
+};
+
+let currentUserRequest: Promise<any> | null = null;
+
+function readCurrentUserCache(options: { allowExpired?: boolean } = {}) {
+    try {
+        const raw = localStorage.getItem(CURRENT_USER_CACHE_KEY);
+        if (!raw) return null;
+
+        const cached = JSON.parse(raw) as CachedCurrentUser;
+        if (!cached?.user || cached.token !== getToken()) return null;
+
+        const isFresh = Date.now() - cached.cachedAt < CURRENT_USER_CACHE_TTL_MS;
+        if (!options.allowExpired && !isFresh) return null;
+
+        return cached.user;
+    } catch {
+        localStorage.removeItem(CURRENT_USER_CACHE_KEY);
+        return null;
+    }
+}
+
+function writeCurrentUserCache(user: any) {
+    try {
+        const cached: CachedCurrentUser = {
+            token: getToken(),
+            user,
+            cachedAt: Date.now(),
+        };
+        localStorage.setItem(CURRENT_USER_CACHE_KEY, JSON.stringify(cached));
+    } catch {
+        // Storage can be unavailable in private contexts; auth still works without the cache.
+    }
+}
+
+function clearCurrentUserCache() {
+    currentUserRequest = null;
+    try {
+        localStorage.removeItem(CURRENT_USER_CACHE_KEY);
+    } catch {
+        // Ignore storage failures; clearing the in-memory request is enough for this session.
+    }
+}
+
+async function getCurrentUser(options: { force?: boolean } = {}) {
+    if (!options.force) {
+        const cachedUser = readCurrentUserCache();
+        if (cachedUser) return cachedUser;
+    }
+
+    if (currentUserRequest) return currentUserRequest;
+
+    const requestToken = getToken();
+
+    const request = fetchApi('/auth/me')
+        .then((user) => {
+            if (getToken() === requestToken) {
+                writeCurrentUserCache(user);
+            }
+            return user;
+        })
+        .finally(() => {
+            if (currentUserRequest === request) {
+                currentUserRequest = null;
+            }
+        });
+
+    currentUserRequest = request;
+    return currentUserRequest;
 }
 
 async function fetchApi(endpoint: string, options: RequestInit = {}) {
@@ -43,12 +134,15 @@ async function fetchApi(endpoint: string, options: RequestInit = {}) {
 
 export const base44 = {
     auth: {
-        me: () => fetchApi('/auth/me'),
+        me: (options?: { force?: boolean }) => getCurrentUser(options),
+        getCachedUser: (options?: { allowExpired?: boolean }) => readCurrentUserCache(options),
+        clearUserCache: clearCurrentUserCache,
         login: async (email: string, password: string) => {
             const data = await fetchApi('/auth/login', {
                 method: 'POST',
                 body: JSON.stringify({ email, password })
             });
+            clearCurrentUserCache();
             setToken(data.access_token);
             return data;
         },
@@ -57,6 +151,7 @@ export const base44 = {
                 method: 'POST',
                 body: JSON.stringify({ token })
             });
+            clearCurrentUserCache();
             setToken(data.access_token);
             return data;
         },
@@ -66,10 +161,12 @@ export const base44 = {
         }),
         logout: (redirectUrl?: string) => {
             clearToken();
+            clearCurrentUserCache();
             window.location.href = redirectUrl || '/login';
         },
         redirectToLogin: (currentUrl?: string) => {
             clearToken();
+            clearCurrentUserCache();
             window.location.href = '/login'; 
         }
     },
@@ -153,6 +250,13 @@ export const base44 = {
             update: (id: string, data: any) => fetchApi(`/agent/keys/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/agent/keys/${id}`, { method: 'DELETE' }),
             resolve: (provider: string) => fetchApi(`/agent/keys/resolve/${provider}`)
+        },
+        AgenticFill: {
+            knowledge: (formId: string) => fetchApi(`/agentic-fill/forms/${formId}/knowledge`),
+            turn: (formId: string, data: any) => fetchApi(`/agentic-fill/forms/${formId}/turn`, {
+                method: 'POST',
+                body: JSON.stringify(data)
+            })
         }
     },
     integrations: {
@@ -219,6 +323,31 @@ export const base44 = {
                 method: 'POST',
                 body: JSON.stringify({ form_id: formId, spreadsheet_name: spreadsheetName }),
             }),
+        },
+        Twitter: {
+            getAuthUrl: () => fetchApi('/integrations/twitter/auth-url'),
+            callback: (code: string, codeVerifier: string, redirectUri?: string) => {
+                return fetchApi('/integrations/twitter/callback', {
+                    method: 'POST',
+                    body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: redirectUri }),
+                });
+            },
+            status: () => fetchApi('/integrations/twitter/status'),
+            disconnect: () => fetchApi('/integrations/twitter/disconnect', {
+                method: 'DELETE',
+            }),
+        },
+        Connections: {
+            status: async () => {
+                const [google, twitter] = await Promise.all([
+                    fetchApi('/integrations/google/status').catch(() => []),
+                    fetchApi('/integrations/twitter/status').catch(() => null),
+                ]);
+                return [
+                    ...(Array.isArray(google) ? google : []),
+                    ...(twitter ? [twitter] : []),
+                ];
+            },
         },
         Sheets: {
             push: (formId: string, spreadsheetName?: string, sheetName?: string) => fetchApi('/sheets/push', {

@@ -8,7 +8,7 @@ import {
     Info, Check, ChevronRight, Plus,
     Trash2, Eye, EyeOff, Globe,
     Share2, Star, AlertTriangle, Loader2,
-    RefreshCcw
+    RefreshCcw, Cpu, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { base44 } from "@/api/foreform";
+import { base44, API_BASE, getToken } from "@/api/foreform";
 
 interface AgentSettingsProps {
     onClose: () => void;
@@ -45,6 +45,29 @@ const PROVIDERS = [
     { id: "cerebras", label: "Cerebras", icon: "🚀", color: "text-orange-500", bg: "bg-orange-500/10" },
 ];
 
+interface AvailableModel {
+    id: string;
+    name: string;
+    provider: string;
+    category: string;
+}
+
+const MODEL_PROVIDER_STYLES: Record<string, { icon: string; color: string; bg: string }> = {
+    meta: { icon: "🦙", color: "text-blue-500", bg: "bg-blue-500/10" },
+    deepseek: { icon: "◇", color: "text-purple-500", bg: "bg-purple-500/10" },
+    google: { icon: "✦", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+    mistral: { icon: "🌀", color: "text-orange-500", bg: "bg-orange-500/10" },
+    nvidia: { icon: "✧", color: "text-lime-500", bg: "bg-lime-500/10" },
+    qwen: { icon: "🔮", color: "text-indigo-500", bg: "bg-indigo-500/10" },
+    moonshot: { icon: "🌙", color: "text-yellow-500", bg: "bg-yellow-500/10" },
+    openai: { icon: "◎", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+    stepfun: { icon: "⚡", color: "text-pink-500", bg: "bg-pink-500/10" },
+    minimax: { icon: "💎", color: "text-teal-500", bg: "bg-teal-500/10" },
+    zhipu: { icon: "🧠", color: "text-sky-500", bg: "bg-sky-500/10" },
+    bytedance: { icon: "🌱", color: "text-green-500", bg: "bg-green-500/10" },
+    microsoft: { icon: "🪟", color: "text-blue-400", bg: "bg-blue-400/10" },
+};
+
 export default function AgentSettings({ onClose }: AgentSettingsProps) {
     const [activeTab, setActiveTab] = useState("general");
     const [chatFont, setChatFont] = useState("default");
@@ -62,6 +85,42 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
     const [isSavingKey, setIsSavingKey] = useState(false);
     const [showKeyValue, setShowKeyValue] = useState(false);
 
+    // Models state
+    const [availableModels, setAvailableModels] = useState<AvailableModel[]>([]);
+    const [isLoadingModels, setIsLoadingModels] = useState(false);
+    const [enabledModels, setEnabledModels] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem("foreform_enabled_models");
+            return saved ? new Set(JSON.parse(saved)) : new Set<string>();
+        } catch {
+            return new Set<string>();
+        }
+    });
+    const [modelSearch, setModelSearch] = useState("");
+    const [modelProviderFilter, setModelProviderFilter] = useState<string | null>(null);
+
+    // MoE state
+    interface MoEPreset {
+        id: string;
+        name: string;
+        orchestrator: string;
+        subagent: string;
+        description: string;
+    }
+    interface MoEAgent {
+        id: string;
+        name: string;
+        description: string;
+        icon: string;
+        requires_key: string | null;
+        capabilities: string[];
+    }
+    const [moeEnabled, setMoeEnabled] = useState(() => localStorage.getItem("foreform_moe_enabled") === "true");
+    const [moePresets, setMoePresets] = useState<MoEPreset[]>([]);
+    const [moeAgents, setMoeAgents] = useState<MoEAgent[]>([]);
+    const [selectedMoePreset, setSelectedMoePreset] = useState(() => localStorage.getItem("foreform_moe_preset") || "power");
+    const [isLoadingMoe, setIsLoadingMoe] = useState(false);
+
     // Agent settings state
     const [autoSaveChats, setAutoSaveChats] = useState(() => localStorage.getItem("foreform_auto_save_chats") !== "false");
     const [streamResponses, setStreamResponses] = useState(() => localStorage.getItem("foreform_stream_responses") !== "false");
@@ -74,6 +133,8 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
     // Load API keys from backend
     useEffect(() => {
         loadApiKeys();
+        loadModels();
+        loadMoeData();
     }, []);
 
     const loadApiKeys = async () => {
@@ -86,6 +147,95 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
             console.warn("Failed to load API keys:", err);
         } finally {
             setIsLoadingKeys(false);
+        }
+    };
+
+    const loadModels = async () => {
+        setIsLoadingModels(true);
+        try {
+            const token = getToken();
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+            const res = await fetch(`${API_BASE}/models`, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                const models: AvailableModel[] = data.models || [];
+                setAvailableModels(models);
+                // If no saved preferences, enable all by default
+                setEnabledModels(prev => {
+                    if (prev.size === 0) {
+                        const allIds = new Set(models.map((m: AvailableModel) => m.id));
+                        localStorage.setItem("foreform_enabled_models", JSON.stringify([...allIds]));
+                        return allIds;
+                    }
+                    return prev;
+                });
+            }
+        } catch (err) {
+            console.warn("Failed to load models:", err);
+        } finally {
+            setIsLoadingModels(false);
+        }
+    };
+
+    const loadMoeData = async () => {
+        setIsLoadingMoe(true);
+        try {
+            const token = getToken();
+            const headers: Record<string, string> = { "Content-Type": "application/json" };
+            if (token) headers["Authorization"] = `Bearer ${token}`;
+
+            const [presetsRes, agentsRes] = await Promise.all([
+                fetch(`${API_BASE}/models/moe`, { headers }),
+                fetch(`${API_BASE}/agent/moe/agents`, { headers }),
+            ]);
+
+            if (presetsRes.ok) {
+                const data = await presetsRes.json();
+                setMoePresets(data.presets || []);
+            }
+            if (agentsRes.ok) {
+                const data = await agentsRes.json();
+                setMoeAgents(data.agents || []);
+            }
+        } catch (err) {
+            console.warn("Failed to load MoE data:", err);
+        } finally {
+            setIsLoadingMoe(false);
+        }
+    };
+
+    const handleMoePresetChange = (presetId: string) => {
+        setSelectedMoePreset(presetId);
+        localStorage.setItem("foreform_moe_preset", presetId);
+    };
+
+    const handleMoeToggle = (enabled: boolean) => {
+        setMoeEnabled(enabled);
+        localStorage.setItem("foreform_moe_enabled", enabled ? "true" : "false");
+    };
+
+    const toggleModel = (modelId: string) => {
+        setEnabledModels(prev => {
+            const next = new Set(prev);
+            if (next.has(modelId)) {
+                next.delete(modelId);
+            } else {
+                next.add(modelId);
+            }
+            localStorage.setItem("foreform_enabled_models", JSON.stringify([...next]));
+            return next;
+        });
+    };
+
+    const toggleAllModels = (enable: boolean) => {
+        if (enable) {
+            const allIds = new Set(availableModels.map(m => m.id));
+            localStorage.setItem("foreform_enabled_models", JSON.stringify([...allIds]));
+            setEnabledModels(allIds);
+        } else {
+            localStorage.setItem("foreform_enabled_models", JSON.stringify([]));
+            setEnabledModels(new Set());
         }
     };
 
@@ -147,12 +297,26 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
 
     const tabs = [
         { id: "general", label: "General", icon: Settings },
+        { id: "models", label: "Models", icon: Cpu },
         { id: "apikeys", label: "API Keys", icon: Key },
         { id: "capabilities", label: "Capabilities", icon: Zap },
         { id: "account", label: "Account", icon: User },
         { id: "privacy", label: "Privacy", icon: Shield },
         { id: "connectors", label: "Connectors", icon: Link },
     ];
+
+    // Derived model data
+    const modelProviders = [...new Set(availableModels.map(m => m.provider))];
+    const filteredModels = availableModels.filter(m => {
+        const matchesSearch = !modelSearch || m.name.toLowerCase().includes(modelSearch.toLowerCase()) || m.id.toLowerCase().includes(modelSearch.toLowerCase());
+        const matchesProvider = !modelProviderFilter || m.provider === modelProviderFilter;
+        return matchesSearch && matchesProvider;
+    });
+    const groupedModels = filteredModels.reduce((acc, m) => {
+        if (!acc[m.provider]) acc[m.provider] = [];
+        acc[m.provider].push(m);
+        return acc;
+    }, {} as Record<string, AvailableModel[]>);
 
     const fontOptions = [
         { id: "default", label: "Default", sample: "Aa" },
@@ -275,6 +439,110 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                                     </button>
                                                 ))}
                                             </div>
+                                        </div>
+
+                                        {/* ── MoE Agent Configuration ── */}
+                                        <div className="pt-6 border-t border-border/40 space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="text-sm font-bold flex items-center gap-2">
+                                                        <Cpu className="w-4 h-4 text-primary" />
+                                                        MoE Agent (Multi-Expert)
+                                                    </h4>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Orchestrate multiple specialist AI agents for complex tasks</p>
+                                                </div>
+                                                <Switch
+                                                    checked={moeEnabled}
+                                                    onCheckedChange={handleMoeToggle}
+                                                />
+                                            </div>
+
+                                            <AnimatePresence>
+                                                {moeEnabled && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: "auto" }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        className="overflow-hidden space-y-5"
+                                                    >
+                                                        {/* Preset Selection */}
+                                                        <div className="space-y-3">
+                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Performance Preset</label>
+                                                            {isLoadingMoe ? (
+                                                                <div className="flex items-center gap-2 py-4 text-muted-foreground">
+                                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    <span className="text-xs">Loading presets...</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    {moePresets.map(preset => {
+                                                                        const isActive = selectedMoePreset === preset.id;
+                                                                        const presetIcons: Record<string, string> = { power: "⚡", balanced: "⚖️", fast: "🚀", deepseek: "◇" };
+                                                                        return (
+                                                                            <button
+                                                                                key={preset.id}
+                                                                                onClick={() => handleMoePresetChange(preset.id)}
+                                                                                className={`relative flex flex-col gap-1.5 p-4 rounded-lg border transition-all text-left ${
+                                                                                    isActive
+                                                                                        ? "bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20"
+                                                                                        : "bg-card border-border/50 hover:border-border hover:bg-muted/20"
+                                                                                }`}
+                                                                            >
+                                                                                {isActive && (
+                                                                                    <div className="absolute top-2 right-2">
+                                                                                        <Check className="w-3.5 h-3.5 text-primary" />
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-lg">{presetIcons[preset.id] || "🤖"}</span>
+                                                                                    <span className="text-sm font-bold">{preset.name}</span>
+                                                                                </div>
+                                                                                <p className="text-[10px] text-muted-foreground leading-relaxed">{preset.description}</p>
+                                                                                <div className="flex flex-col gap-0.5 mt-1">
+                                                                                    <span className="text-[9px] font-mono text-muted-foreground/70 truncate">🧠 {preset.orchestrator.split('/').pop()}</span>
+                                                                                    <span className="text-[9px] font-mono text-muted-foreground/70 truncate">⚙️ {preset.subagent.split('/').pop()}</span>
+                                                                                </div>
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Available Sub-Agents */}
+                                                        <div className="space-y-3">
+                                                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Available Sub-Agents</label>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {moeAgents.map(agent => (
+                                                                    <div
+                                                                        key={agent.id}
+                                                                        className="flex items-start gap-3 p-3 rounded-lg border border-border/50 bg-muted/5"
+                                                                    >
+                                                                        <span className="text-xl mt-0.5">{agent.icon}</span>
+                                                                        <div className="min-w-0 space-y-1">
+                                                                            <span className="text-xs font-bold block">{agent.name}</span>
+                                                                            <p className="text-[10px] text-muted-foreground leading-relaxed">{agent.description}</p>
+                                                                            <div className="flex flex-wrap gap-1 mt-1">
+                                                                                {agent.capabilities.slice(0, 3).map(cap => (
+                                                                                    <span key={cap} className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                                                                                        {cap.replace(/_/g, ' ')}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </div>
+                                                                            {agent.requires_key && (
+                                                                                <div className="flex items-center gap-1 mt-1">
+                                                                                    <Key className="w-2.5 h-2.5 text-amber-500" />
+                                                                                    <span className="text-[8px] text-amber-500 font-bold">Requires {agent.requires_key}</span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
                                         </div>
 
                                         {/* ── Temperature ── */}
@@ -594,36 +862,161 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                             })
                                         )}
                                     </div>
+                                </div>
+                            )}
 
-                                    {/* Local Key (Legacy) */}
-                                    <div className="pt-6 border-t border-border/40 space-y-3">
-                                        <div className="flex items-center gap-2">
-                                            <AlertTriangle className="w-4 h-4 text-amber-500" />
-                                            <h4 className="text-xs font-bold text-muted-foreground ">Browser-Only Key (Legacy)</h4>
+                            {/* ═══ Models ═══ */}
+                            {activeTab === "models" && (
+                                <div className="space-y-6">
+                                    <header className="space-y-1.5 flex items-start justify-between">
+                                        <div className="space-y-1.5">
+                                            <h3 className="text font-bold">Available Models</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Toggle which AI models are available in your agent. {enabledModels.size} of {availableModels.length} enabled.
+                                            </p>
                                         </div>
-                                        <p className="text-[11px] text-muted-foreground">
-                                            This key is stored only in your browser and not synced to the server. Use the "Add Key" above instead for cloud-synced keys.
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                type="password"
-                                                placeholder="sk-..."
-                                                value={localStorage.getItem("foreform_api_key") || ""}
-                                                onChange={(e) => localStorage.setItem("foreform_api_key", e.target.value)}
-                                                className="bg-muted/30 border-border/50"
-                                            />
+                                        <div className="flex items-center gap-2 shrink-0">
                                             <Button
                                                 variant="outline"
-                                                onClick={() => {
-                                                    localStorage.removeItem("foreform_api_key");
-                                                    sessionStorage.removeItem("_resolved_gemini_key");
-                                                    toast.success("Local key cleared");
-                                                }}
-                                                className="px-4 text-xs font-bold shrink-0"
+                                                size="sm"
+                                                className="rounded px-3 text-xs font-bold gap-1.5"
+                                                onClick={() => toggleAllModels(enabledModels.size < availableModels.length)}
                                             >
-                                                Clear
+                                                {enabledModels.size < availableModels.length ? (
+                                                    <><Check className="w-3 h-3" /> Enable All</>
+                                                ) : (
+                                                    <><X className="w-3 h-3" /> Disable All</>
+                                                )}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="w-8 h-8 rounded-lg"
+                                                onClick={loadModels}
+                                                disabled={isLoadingModels}
+                                            >
+                                                <RefreshCcw className={`w-3.5 h-3.5 ${isLoadingModels ? "animate-spin" : ""}`} />
                                             </Button>
                                         </div>
+                                    </header>
+
+                                    {/* Search + Filter */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                            <Input
+                                                placeholder="Search models..."
+                                                value={modelSearch}
+                                                onChange={(e) => setModelSearch(e.target.value)}
+                                                className="pl-9 bg-card border-border/50 h-9 text-sm"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Provider Filter Pills */}
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <button
+                                            onClick={() => setModelProviderFilter(null)}
+                                            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+                                                !modelProviderFilter
+                                                    ? "bg-primary text-primary-foreground"
+                                                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                                            }`}
+                                        >
+                                            All
+                                        </button>
+                                        {modelProviders.map(p => {
+                                            const style = MODEL_PROVIDER_STYLES[p];
+                                            const count = availableModels.filter(m => m.provider === p).length;
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    onClick={() => setModelProviderFilter(modelProviderFilter === p ? null : p)}
+                                                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                                                        modelProviderFilter === p
+                                                            ? "bg-primary text-primary-foreground"
+                                                            : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                                                    }`}
+                                                >
+                                                    <span>{style?.icon || "🤖"}</span>
+                                                    <span className="capitalize">{p}</span>
+                                                    <span className="opacity-60">({count})</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Models List */}
+                                    <div className="space-y-4">
+                                        {isLoadingModels ? (
+                                            <div className="flex items-center justify-center py-12 text-muted-foreground">
+                                                <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                                <span className="text-sm font-medium">Loading models...</span>
+                                            </div>
+                                        ) : Object.keys(groupedModels).length === 0 ? (
+                                            <div className="text-center py-12 space-y-3">
+                                                <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+                                                    <Cpu className="w-7 h-7 text-muted-foreground" />
+                                                </div>
+                                                <p className="text-sm font-bold text-muted-foreground">No models found</p>
+                                                <p className="text-xs text-muted-foreground/70">
+                                                    {modelSearch ? "Try a different search term." : "Could not fetch models from the server."}
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            Object.entries(groupedModels).map(([provider, models]) => {
+                                                const style = MODEL_PROVIDER_STYLES[provider] || { icon: "🤖", color: "text-foreground", bg: "bg-muted" };
+                                                const enabledCount = models.filter(m => enabledModels.has(m.id)).length;
+                                                return (
+                                                    <div key={provider} className="space-y-2">
+                                                        <div className="flex items-center justify-between px-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-base ${style.color}`}>{style.icon}</span>
+                                                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground capitalize">{provider}</h4>
+                                                                <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-bold">
+                                                                    {enabledCount}/{models.length}
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            {models.map(model => (
+                                                                <motion.div
+                                                                    key={model.id}
+                                                                    layout
+                                                                    className={`flex items-center justify-between p-3 rounded border transition-all ${
+                                                                        enabledModels.has(model.id)
+                                                                            ? "border-border/50 bg-card hover:bg-muted/10"
+                                                                            : "border-border/20 bg-muted/5 opacity-50"
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-3 min-w-0">
+                                                                        <div className={`w-8 h-8 rounded-lg ${style.bg} flex items-center justify-center shrink-0`}>
+                                                                            <span className={`text-sm ${style.color}`}>{style.icon}</span>
+                                                                        </div>
+                                                                        <div className="min-w-0">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-sm font-bold truncate">{model.name}</span>
+                                                                                {model.category === "vision" && (
+                                                                                    <Badge className="bg-violet-500/10 text-violet-500 border-none text-[9px] px-1.5 py-0 h-4">Vision</Badge>
+                                                                                )}
+                                                                                {model.category === "code" && (
+                                                                                    <Badge className="bg-cyan-500/10 text-cyan-500 border-none text-[9px] px-1.5 py-0 h-4">Code</Badge>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className="text-[10px] text-muted-foreground font-mono truncate">{model.id}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    <Switch
+                                                                        checked={enabledModels.has(model.id)}
+                                                                        onCheckedChange={() => toggleModel(model.id)}
+                                                                    />
+                                                                </motion.div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -727,7 +1120,7 @@ export default function AgentSettings({ onClose }: AgentSettingsProps) {
                                 </div>
                             )}
 
-                            {/* ═══ Account ═══ */}
+                            {/* ═══  ═══ */}
                             {activeTab === "account" && (
                                 <div className="space-y-8 pt-10 text-center">
                                     <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">

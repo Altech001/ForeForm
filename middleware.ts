@@ -39,7 +39,7 @@ declare const process: { env: Record<string, string> };
 const BACKEND_API =
   process.env.VITE_API_BASE ||
   process.env.API_BASE ||
-  'https://foreform.vercel.app/api';
+  'https://api.pitbox.fun/api';
 
 const FRONTEND_ORIGIN = 'https://form.pitbox.fun';
 

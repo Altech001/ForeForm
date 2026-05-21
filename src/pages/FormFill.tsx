@@ -56,6 +56,23 @@ export default function FormFill() {
   const allQuestions = form?.questions || [];
   const collectParticipantDetails = presentation.collect_participant_details ?? presentation.collectParticipantDetails ?? false;
 
+  useEffect(() => {
+    if (!formId || !form) return;
+    const savedDraft = sessionStorage.getItem(`foreform:assisted-draft:${formId}`);
+    if (!savedDraft) return;
+
+    try {
+      const parsed = JSON.parse(savedDraft);
+      if (parsed.answers && typeof parsed.answers === "object") {
+        setAnswers(parsed.answers);
+      }
+      if (parsed.respondentName) setRespondentName(parsed.respondentName);
+      if (parsed.respondentEmail) setRespondentEmail(parsed.respondentEmail);
+    } catch {
+      sessionStorage.removeItem(`foreform:assisted-draft:${formId}`);
+    }
+  }, [formId, form]);
+
   // Evaluate conditional logic — a question is visible if it has no condition or the condition passes
   const evaluateCondition = (condition, currentAnswers) => {
     if (!condition || !condition.source_question_id) return true;
@@ -286,7 +303,7 @@ export default function FormFill() {
                   )}
                   {validationError && <p className="text-sm text-destructive">{validationError}</p>}
                   <Button onClick={goNext} className="w-full h-12 text-base gap-2 rounded">
-                    {quiz.enabled ? "Start Quiz" : "Start Survey"} <ArrowRight className="w-4 h-4" />
+                    {quiz.enabled ? "Start Quiz" : "Fill Form"} <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
               </motion.div>

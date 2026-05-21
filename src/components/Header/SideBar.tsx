@@ -2,7 +2,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Icon from "@/service/icon";
 import { useAuth } from "@/lib/useAuth";
-import { FCloud } from "@/constants/Icons";
+import { CalenderIcon, FCloud } from "@/constants/Icons";
 
 interface SideBarProps {
     isOpen: boolean;
@@ -39,6 +39,12 @@ const primaryNavItems: NavItem[] = [
         label: "Connectors",
         icon: <Icon name="connectors" size={20} />,
         path: "/connectors",
+        iconColor: "text-zinc-500",
+    },
+        {
+        label: "My Schedules",
+        icon: <CalenderIcon className="w-5 h-5 invert text-black"/>,
+        path: "/schedules",
         iconColor: "text-zinc-500",
     },
 ];
