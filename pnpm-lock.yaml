@@ -113,6 +113,9 @@ importers:
       '@react-oauth/google':
         specifier: ^0.13.4
         version: 0.13.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@rive-app/react-webgl2':
+        specifier: ^4.28.5
+        version: 4.28.5(react@18.3.1)
       '@tanstack/query-core':
         specifier: ^5.83.0
         version: 5.96.2
@@ -1236,6 +1239,14 @@ packages:
   '@remix-run/router@1.23.2':
     resolution: {integrity: sha512-Ic6m2U/rMjTkhERIa/0ZtXJP17QUi2CbWE7cqx4J58M8aA3QTfW+2UlQ4psvTX9IO1RfNVhK3pcpdjej7L+t2w==}
     engines: {node: '>=14.0.0'}
+
+  '@rive-app/react-webgl2@4.28.5':
+    resolution: {integrity: sha512-ieNHpANoaHD6R6m33jtJfjIQB37PpDo9RkbjlkpaZbvHSn9c2ZpKsD3vUlndKOpwl+6cA97JXJuPfs0LbkZ9AA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
+
+  '@rive-app/webgl2@2.37.7':
+    resolution: {integrity: sha512-UBhiWn9Ujjsl7H98pv5WKvUvhh79xd2IkFhT6BvK0Z3rFC6ikqDZ9odUokwhmQa8xoaJT3rDL9t5aq4wlqBrsQ==}
 
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
@@ -4464,6 +4475,13 @@ snapshots:
       react-dom: 18.3.1(react@18.3.1)
 
   '@remix-run/router@1.23.2': {}
+
+  '@rive-app/react-webgl2@4.28.5(react@18.3.1)':
+    dependencies:
+      '@rive-app/webgl2': 2.37.7
+      react: 18.3.1
+
+  '@rive-app/webgl2@2.37.7': {}
 
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 

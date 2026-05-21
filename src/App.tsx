@@ -15,6 +15,7 @@ import Dashboard from './pages/Dashboard';
 import DocxPreview from './pages/DocxPreview';
 import FormBuilder from './pages/FormBuilder';
 import FormFill from './pages/FormFill';
+import AIFill from './pages/AIFill';
 import FormResponses from './pages/FormResponses';
 import Login from './pages/Login';
 import ProfilePage from './pages/ProfilePage';
@@ -30,7 +31,6 @@ import TwitterCallbackPage from './pages/TwitterCallbackPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ConnectorsPage from './pages/connectors';
 import ReviewPage from './pages/revew/ReviewPage';
-import AsisstedFill from './pages/agenticfill/AsisstedFill';
 
 const AppSkeletonLoader = () => (
   <div className="fixed inset-0 bg-background flex z-50">
@@ -87,7 +87,9 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/f/:id" element={<FormFill />} />
-        <Route path="/f/:id/assisted" element={<AsisstedFill />} />
+        <Route path="/f/:id/assisted" element={<AIFill />} />
+        <Route path="/f/:id/ai-fill" element={<AIFill />} />
+        <Route path="/f/:id/voice" element={<AIFill />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
     );
